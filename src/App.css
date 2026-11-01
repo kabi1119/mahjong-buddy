@@ -629,6 +629,74 @@ h2  {
   font-size: 13px;
 }
 
+.game-controls > p, .game-controls > div > p, .turn-controls > p {
+  font-size: 12px;
+  line-height: 1.7;
+  margin-block: 12px;
+  text-align: start;
+}
+.game-controls > p { border: 0; padding: 0; }
+.game-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 12px; }
+.game-actions > button, .wall-guide .editor-actions > button {
+  min-height: 46px;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  flex: 1 1 100px;
+}
+.game-actions button:disabled { opacity: .55; }
+.text-action {
+  background: transparent;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  min-height: 44px;
+  padding: 8px;
+  color: #315f48;
+  font-size: 12px;
+}
+.table-hint { flex-wrap: wrap; }
+.reset-setup { display: block; margin: 8px auto 0; color: #785c4b; }
+.dice-count-label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; margin-block: 12px; }
+.dice-count-label select { min-width: 0; max-width: 100%; min-height: 44px; padding: 8px; border: 1px solid #c9d0c0; border-radius: 8px; background: #fffef8; font: inherit; color: #263c33; }
+.dice-result { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; margin-block: 14px; font-size: 14px; }
+.dice-result > span { display: flex; gap: 5px; }
+.die-face { display: inline-grid; place-items: center; background: #fffdf0; color: #244f3f; border: 1px solid #c9d0c0; border-bottom-width: 3px; border-radius: 9px; width: 42px; height: 46px; font: 36px 'Segoe UI Symbol', sans-serif; }
+.rolling-placeholder { display: flex; flex-direction: column; align-items: center; margin-block: 14px; font-size: 12px; gap: 4px; }
+.rolling-placeholder > span { display: block; font-size: 34px; letter-spacing: 8px; animation: dice-shake .15s ease-in-out infinite alternate; }
+@keyframes dice-shake { from { transform: translateX(-3px) rotate(-4deg); } to { transform: translateX(3px) rotate(4deg); } }
+.dealer-seat .seat-avatar { border-color: #e5c478; }
+.dealer-badge { position: absolute; top: -5px; padding: 2px 7px; border-radius: 6px; background: #e6c781; color: #294a38; font-size: 9px; font-weight: 700; }
+.current-seat .seat-avatar { outline: 3px solid #b3ebc4; outline-offset: 3px; }
+.current-seat .seat-label { color: #e5f6d8; font-weight: 700; }
+.turn-controls { border-top: 1px solid #daded0; margin-top: 16px; }
+.game-error { color: #944b3d; }
+.wall-guide { padding-inline: 20px; }
+.guide-steps { padding-left: 22px; margin-block: 20px; }
+.guide-steps > li { padding-left: 3px; margin-bottom: 24px; }
+.guide-steps h3 { font-size: 15px; margin-block: 0 10px; }
+.guide-steps p { font-size: 12px; line-height: 1.8; margin-block: 9px; overflow-wrap: anywhere; }
+.wall-diagram { display: block; width: 100%; height: auto; }
+.wall-owners { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; list-style: none; gap: 6px; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.counted-strip { display: grid; gap: 2px; margin-block: 15px; }
+.counted-strip > span { display: grid; place-items: center; min-width: 0; height: 34px; background: #e3e7d9; border: 1px solid #a8b49e; border-bottom-width: 3px; border-radius: 2px; font: 9px/1 sans-serif; color: #244f3f; }
+.counted-strip .counted-stack { background: #d5dfca; }
+.counted-strip .break-stack { background: #f1c5a9; border: 2px solid #b0563f; }
+.guide-note { color: #65725f; font-size: 11px; }
+
+@media (min-width: 900px) {
+  .app-header { margin-bottom: 32px; }
+  .brand { font-size: 20px; }
+  .brand small { font-size: 9px; }
+  .brand-tile { width: 39px; height: 48px; font-size: 28px; }
+  h1 { font-size: 28px; }
+  .section-heading { margin-block: 31px 20px; }
+  .game-controls { padding: 19px 18px 16px; }
+  .game-controls p, .game-actions > button, .dice-count-label { font-size: 13px; }
+  .app-footer { margin-top: 27px; }
+}
+
 .app-footer .storage-warning {
   color: #944b3d;
   font-size: 11px;
@@ -641,23 +709,23 @@ h2  {
 /* Enlarge the same single-column app, without viewport-height filler. */
 @media (min-width: 900px) {
   .app-shell {
-    max-width: 560px;
+    max-width: clamp(560px, 68svh, 610px);
     min-height: auto;
-    padding-inline: max(28px, env(safe-area-inset-left)) max(28px, env(safe-area-inset-right));
+    padding-inline: max(30px, env(safe-area-inset-left)) max(30px, env(safe-area-inset-right));
   }
   .player-dialog {
-    max-width: 560px;
+    max-width: clamp(560px, 68svh, 610px);
   }
   .seat-avatar {
-    width: 62px;
-    height: 62px;
-    font-size: 35px;
+    width: clamp(62px, 7.5svh, 68px);
+    height: clamp(62px, 7.5svh, 68px);
+    font-size: clamp(35px, 4.1svh, 38px);
   }
   .occupied .seat-avatar {
-    font-size: 36px;
+    font-size: clamp(36px, 4.2svh, 39px);
   }
   .seat-name {
-    font-size: 14px;
+    font-size: clamp(14px, 1.7svh, 15px);
     margin-top: 8px;
   }
   .seat-label {
@@ -674,7 +742,7 @@ h2  {
     font-size: 20px;
   }
   .table-center strong {
-    font-size: 17px;
+    font-size: clamp(17px, 2.05svh, 18.5px);
   }
   .waiting-status {
     font-size: 12px;

@@ -18,7 +18,7 @@ body  {
   min-width: 320px;
 }
 
-button, input  {
+button, input, select  {
   font: inherit;
 }
 
@@ -36,7 +36,7 @@ button:disabled  {
   cursor: default;
 }
 
-button:focus-visible, a:focus-visible, input:focus-visible  {
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible  {
   outline: 3px solid #b38b43;
   outline-offset: 4px;
 }

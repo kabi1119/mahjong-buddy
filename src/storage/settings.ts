@@ -1,9 +1,12 @@
 import { AVATARS, POSITIONS, VARIANTS } from '../types/mahjong'
 import type { MahjongVariant, Player, PlayerPosition } from '../types/mahjong'
+import { decodeSetup } from '../features/game/setup'
+import type { GameSetup } from '../features/game/setup'
 
 export interface Settings {
   variant: MahjongVariant
   players: Partial<Record<PlayerPosition, Player>>
+  setup?: GameSetup
 }
 
 // Database version tracks object-store migrations; schemaVersion tracks record migrations.
@@ -36,6 +39,10 @@ export function decodeSettings(value: unknown): Settings {
     if (!nickname || nickname.length > 12 || !avatar) continue
     settings.players[position] = { position, nickname, avatar: avatar.emoji }
   }
+  if (POSITIONS.every((position) => settings.players[position]) && variant) {
+    const setup = decodeSetup(value.setup, settings.variant)
+    if (setup) settings.setup = setup
+  }
   return settings
 }
 
@@ -46,7 +53,8 @@ function encodeSettings(settings: Settings) {
     const player = settings.players[position]
     if (player) players[position] = { nickname: player.nickname, avatar: player.avatar }
   }
-  return { schemaVersion: 1, variant: settings.variant, players }
+  return { schemaVersion: 1, variant: settings.variant, players,
+    ...(settings.setup ? { setup: settings.setup } : {}) }
 }
 
 function openDatabase(): Promise<IDBDatabase> {
