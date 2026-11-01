@@ -704,7 +704,16 @@ h2  {
 
 /* Enlarge the same single-column app, without viewport-height filler. */
 @media (min-width: 900px) {
+  #root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
   .app-shell {
+    /* Auto margins share spare space, and resolve to zero for taller content. */
+    margin-block: auto;
+    flex-shrink: 0;
     max-width: 590px;
     min-height: auto;
     padding-inline: max(30px, env(safe-area-inset-left)) max(30px, env(safe-area-inset-right));
