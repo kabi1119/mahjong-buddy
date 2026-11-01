@@ -709,12 +709,12 @@ h2  {
 /* Enlarge the same single-column app, without viewport-height filler. */
 @media (min-width: 900px) {
   .app-shell {
-    max-width: clamp(560px, 68svh, 610px);
+    max-width: 590px;
     min-height: auto;
     padding-inline: max(30px, env(safe-area-inset-left)) max(30px, env(safe-area-inset-right));
   }
   .player-dialog {
-    max-width: clamp(560px, 68svh, 610px);
+    max-width: 590px;
   }
   .seat-avatar {
     width: clamp(62px, 7.5svh, 68px);

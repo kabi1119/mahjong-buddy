@@ -88,6 +88,8 @@ describe('game workflow', () => {
     expect(screen.queryByText('正在擲骰…')).toBeNull()
     await screen.findByRole('dialog', { name: '開門指引' })
     expect(screen.getByText(/王牌不可作普通摸牌/)).toBeTruthy()
+    // Finish both queued writes before the next test replaces the IndexedDB factory.
+    await saved()
   })
 
   it('invalidates dice and turns on dealer, house-rule or variant change, preserving players', async () => {
