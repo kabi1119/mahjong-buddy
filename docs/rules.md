@@ -24,7 +24,7 @@ Use the dealer as count 1 and advance in player order for each additional pip. W
 - HK: replacement draws begin at `B−1` and proceed backwards. The chosen default is modern draw-to-the-tail, without a fixed reserved dead wall. The guide identifies the two ends; it does not track live tiles or replacements as play proceeds. House rules for repeated flower replacement order must be agreed at the table; this app does not enforce them.
 - Riichi: dead-wall stacks are `B−1…B−7`, with wraparound. Dora indicator = upper tile of `B−3`. Those seven stacks are excluded from ordinary dealing/drawing. They can occupy two physical wall sections; do not move stacks around a corner to make one separate seven-stack row. The diagram shows the initial arrangement, not evolving kan replacements or additional indicators.
 
-The small numbered strip is an **owner-right-to-left counting list**, not a second unrotated table picture. The SVG and accompanying screen-direction text show physical orientation; the red marker is the break after the numbered stack. Highlighted tiles are location markers, not generated tile identities.
+The two-step guide presents the dice result and the wall diagram. The SVG and short screen-direction annotation show physical orientation; the numbered red marker is the break after the counted stack. Highlighted tiles are location markers, not generated tile identities. The rule calculations are unchanged.
 
 ## Randomness, state and limitations
 

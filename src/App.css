@@ -679,10 +679,6 @@ h2  {
 .guide-steps p { font-size: 12px; line-height: 1.8; margin-block: 9px; overflow-wrap: anywhere; }
 .wall-diagram { display: block; width: 100%; height: auto; }
 .wall-owners { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; list-style: none; gap: 6px; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
-.counted-strip { display: grid; gap: 2px; margin-block: 15px; }
-.counted-strip > span { display: grid; place-items: center; min-width: 0; height: 34px; background: #e3e7d9; border: 1px solid #a8b49e; border-bottom-width: 3px; border-radius: 2px; font: 9px/1 sans-serif; color: #244f3f; }
-.counted-strip .counted-stack { background: #d5dfca; }
-.counted-strip .break-stack { background: #f1c5a9; border: 2px solid #b0563f; }
 .guide-note { color: #65725f; font-size: 11px; }
 
 @media (min-width: 900px) {
@@ -788,4 +784,87 @@ h2  {
   .player-dialog  {
     padding-inline:18px;
   }
+}
+
+/* Shared brand and contextual actions. Native details keeps secondary controls reachable. */
+.brand { min-height: 44px; }
+.brand-logo { display: block; width: 44px; height: 44px; flex: none; }
+.mode-tile { display: block; flex: none; width: 24px; height: 30px; }
+.table-variant { font-size: 12px; color: #647165; padding-bottom: 4px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.primary-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.primary-controls > .game-actions { margin: 0; }
+.primary-controls .game-actions > button { min-width: 0; flex-basis: 80px; font-size: 13px; padding: 9px 8px; }
+.secondary-actions { min-width: 0; }
+.secondary-actions > summary { cursor: pointer; min-height: 46px; padding: 12px 8px; border-radius: 9px; border: 1px solid #c9d0c0; font-size: 12px; line-height: 20px; list-style-position: inside; touch-action: manipulation; }
+.secondary-actions > summary:focus-visible { outline: 3px solid #b38b43; outline-offset: 3px; }
+.secondary-actions[open] { grid-column: 1 / -1; grid-row: 2; }
+.secondary-actions[open] > summary { border: 0; padding-inline: 2px; }
+.secondary-content { border-top: 1px solid #daded0; padding-top: 10px; }
+.secondary-content > button { display: block; width: 100%; min-height: 44px; border-radius: 9px; padding: 9px; margin-block: 8px; font: inherit; font-size: 13px; }
+.secondary-content p { font-size: 12px; line-height: 1.7; margin-block: 10px; }
+.secondary-content select { font-size: 16px; }
+.app-footer .storage-status { font-size: 11px; color: #687565; }
+.app-footer .storage-warning { display: block; font-size: 12px; line-height: 1.6; color: #944b3d; text-align: start; }
+.wall-guide .guide-steps > li { margin-bottom: 16px; }
+
+/* Use available mobile height for the table, never a fixed clipping box.
+   Grid auto rows grow for long names, text enlargement and zoom. */
+@media (max-width: 899px) {
+  .app-shell {
+    min-height: 0;
+    padding: calc(8px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  .app-header { margin-bottom: 6px; }
+  .brand { gap: 8px; font-size: 18px; letter-spacing: 1px; }
+  .brand small { margin-top: 2px; font-size: 9px; letter-spacing: 1.6px; }
+  .mode-selector { padding: 3px; border-radius: 11px; }
+  .mode { min-height: 44px; gap: 8px; }
+  .section-heading { margin: 8px 0; align-items: center; }
+  .section-heading .eyebrow { display: none; }
+  h1 { font-size: 22px; line-height: 1.4; }
+  .mahjong-table {
+    aspect-ratio: auto;
+    display: grid;
+    grid-template-columns: 26% minmax(0, 48%) 26%;
+    grid-template-rows: auto minmax(104px, 1fr) auto;
+    min-block-size: clamp(270px, calc(100svh - 310px - env(safe-area-inset-top) - env(safe-area-inset-bottom)), 410px);
+    padding: 10px 2px 8px;
+    border-width: 6px;
+    border-radius: 26px;
+    box-shadow: inset 0 0 0 2px #8495794a, inset 0 0 35px #0d302c55, 0 4px 0 #273f33, 0 8px 18px #253e3218;
+  }
+  .player-seat { position: relative; inset: auto; width: 100%; padding: 3px 2px; align-self: center; min-width: 0; }
+  .seat-top { grid-area: 1 / 2; }
+  .seat-bottom { grid-area: 3 / 2; }
+  .seat-left { grid-area: 2 / 1; }
+  .seat-right { grid-area: 2 / 3; }
+  .seat-avatar { width: 44px; height: 44px; font-size: 27px; }
+  .seat-name { display: block; overflow: visible; -webkit-line-clamp: unset; font-size: 12px; margin-top: 3px; line-height: 1.35; }
+  .seat-label { font-size: 10px; line-height: 1.3; margin-top: 2px; }
+  .dealer-badge { top: -6px; font-size: 9px; }
+  .table-center { position: static; inset: auto; grid-area: 2 / 2; min-width: 0; margin: 4px; padding: 8px 3px; align-self: center; }
+  .center-tiles { margin-bottom: 5px; }
+  .center-tiles i { width: 16px; height: 20px; font-size: 13px; }
+  .table-center strong { font-size: 13px; line-height: 1.4; }
+  .waiting-status { font-size: 11px; margin-top: 3px; line-height: 1.4; }
+  .round-placeholder { gap: 8px; font-size: 10px; padding-top: 5px; margin-top: 6px; width: 94%; }
+  .table-hint { margin: 10px 0 7px; font-size: 12px; line-height: 1.5; text-align: center; }
+  .preparation.game-controls { padding: 7px; border-radius: 12px; }
+  .app-footer { margin-top: 7px; line-height: 1.5; }
+  .rolling-placeholder { margin: 6px 0 2px; flex-direction: row; justify-content: center; font-size: 12px; }
+  .rolling-placeholder > span { font-size: 20px; letter-spacing: 2px; }
+  .player-dialog { scroll-padding-block: 12px; }
+}
+@supports (height: 100dvh) {
+  @media (max-width: 899px) {
+    .mahjong-table { min-block-size: clamp(270px, calc(100dvh - 310px - env(safe-area-inset-top) - env(safe-area-inset-bottom)), 410px); }
+  }
+}
+@media (max-width: 899px) and (max-height: 650px) {
+  .app-header { margin-bottom: 4px; }
+  .section-heading { margin-block: 5px; }
+  .table-hint { margin-block: 8px 6px; }
+  .mahjong-table { min-block-size: 270px; }
+  .app-footer { margin-top: 5px; }
 }

@@ -34,7 +34,7 @@ export function WallGuide({ result, dice, dealer, players, onClose, onDealt }: P
     <ol className="guide-steps">
       <li><h3>骰子結果</h3><DiceFaces dice={dice} /><p>由莊家 {owner(dealer)} 作 1，逆時針數東 → 南 → 西 → 北。</p></li>
       <li><h3>揀選牌牆</h3><p>數到 {result.total}：在 <strong>{owner(result.wall)}</strong> 面前的牌牆開門。</p>
-        <svg className="wall-diagram" viewBox="0 0 320 320" role="img" aria-label={`俯視圖：${owner(result.wall)}牌牆開門；綠色為起手位置，金色為王牌，星號為寶牌指示牌。`}>
+        <svg className="wall-diagram" viewBox="0 0 320 320" role="img" aria-label={`俯視圖：${owner(result.wall)}牌牆，第 ${result.total} 棟後開門；綠色為起手位置，${result.dora ? '金色為王牌，星號為寶牌指示牌' : '尾為補花補槓端'}。`}>
           <defs><marker id="count-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#f9dc95" /></marker></defs>
           <rect x="27" y="27" width="266" height="266" rx="22" fill="#244f3f" />
           {(() => {
@@ -67,19 +67,13 @@ export function WallGuide({ result, dice, dealer, players, onClose, onDealt }: P
             const dy = result.wall === 'right' ? 1 : result.wall === 'left' ? -1 : 0
             const x = p.x + dx * 105 / result.stacksPerWall
             const y = p.y + dy * 105 / result.stacksPerWall
-            return <circle cx={x} cy={y} r="5" fill="#be624a" stroke="#fff3d5" strokeWidth="1.5" />
+            return <g><circle cx={x} cy={y} r="5" fill="#be624a" stroke="#fff3d5" strokeWidth="1.5" /><text x={x + (x > 160 ? -12 : 12)} y={y + (y > 160 ? -12 : 15)} textAnchor="middle" fill="#fff3d5" fontSize="11" fontWeight="700">{result.total}</text></g>
           })()}
         </svg>
         <ul className="wall-owners">{POSITIONS.map((wall) => <li key={wall}>{POSITION_LABELS[wall]}：{owner(wall)}</li>)}</ul>
-      </li>
-      <li><h3>從玩家右端數 {result.total} 棟</h3><p>面向牌牆的 {owner(result.wall)}，其右手端是<strong>{direction.start}</strong>。沿畫面<strong>{direction.direction}</strong>數，在第 {result.total} 棟之後開門。每棟兩張。</p>
-        <div className="counted-strip" style={{ gridTemplateColumns: `repeat(${result.stacksPerWall}, minmax(0, 1fr))` }} aria-label="按玩家右端至左端排列的棟數">
-          {Array.from({ length: result.stacksPerWall }, (_, index) => <span key={index} className={index + 1 === result.total ? 'break-stack' : index < result.total ? 'counted-stack' : ''}>{index + 1}</span>)}
-        </div><p className="guide-note">上列為數數清單（右端 1 → 左端 {result.stacksPerWall}），實際畫面方向請按俯視圖。紅點／紅框：第 {result.total} 棟後的開門位置。</p>
-      </li>
-      <li><h3>莊家開始配牌</h3><p>第一棟：<strong>{location(result.firstLive)}</strong>。由開門後的活牌端順時針繼續取牌；跨角時接到下一幅牌牆的玩家右端。</p>
-        <p>配牌次序：{[dealer, ...Array.from({ length: 3 }, (_, index) => POSITIONS[(POSITIONS.indexOf(dealer) - index - 1 + 4) % 4])].map(owner).join(' → ')}。每家每次取兩棟，共三輪；莊家再取下一棟及第三棟的上層牌（跳牌），閒家依序各取下一張。莊家起手 14 張，其他各 13 張。</p>
-        {result.dora ? <><p><strong>王牌不可作普通摸牌。</strong>由開門處向取牌反方向留起七棟（14 張），可能跨角延伸至另一幅牌牆。</p><p>寶牌指示牌：<strong>{location(result.dora)}</strong>的上層牌，即由開門處沿王牌端倒數第 3 棟。只翻開指示牌，不是直接指定寶牌。</p></> : <p>補花／補槓從尾端開始：<strong>{location(result.replacementEnd)}</strong>，沿普通取牌的反方向取用。本版採有花 18 棟、摸到尾，不固定留王牌；補花次序的家規請開局前約定。</p>}
+        <p>從玩家右端（{direction.start}）沿{direction.direction}數 {result.total} 棟，在紅點開門。綠色「始」：{location(result.firstLive)}，由此順時針配牌，跨角繼續。</p>
+        {result.dora ? <p><strong>王牌不可作普通摸牌。</strong>金色七棟（14 張）留起；★ 為距開門處倒數第 3 棟的上層：{location(result.dora)}。王牌可跨角。</p>
+          : <p>「尾」為補花／補槓端：{location(result.replacementEnd)}，逆普通取牌方向取用；港式 18 棟，不固定留王牌。</p>}
       </li>
     </ol>
     <div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>返回牌桌</button>{onDealt && <button type="button" className="primary-button" onClick={onDealt}>已完成配牌</button>}</div>

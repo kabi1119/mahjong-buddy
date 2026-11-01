@@ -1,1 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect x="8" y="3" width="48" height="58" rx="9" fill="#244f3f"/><rect x="8" y="3" width="48" height="51" rx="9" fill="#f7f7f0"/><text x="32" y="40" text-anchor="middle" font-family="serif" font-size="36" fill="#244f3f">發</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title"><title id="title">麻雀小夥伴・一索小鳥</title><rect x="3" y="3" width="58" height="58" rx="13" fill="#e7e8d5"/><rect x="3" y="1" width="58" height="56" rx="13" fill="#fbf8e9" stroke="#c5d5bb" stroke-width="1.5"/>
+<path d="M21 49h25M30 46v5m8-7 2 7" fill="none" stroke="#285a43" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M14 42c5-2 9-7 10-14 1-10 9-15 17-11 4 2 6 6 5 11-1 8-7 17-17 18-5 0-10-1-15-4Z" fill="#35785a"/>
+<path d="M23 35c5-6 10-9 17-8-2 9-7 15-15 15" fill="#86b798"/>
+<path d="M17 42 9 48l17-5" fill="#214d3b"/>
+<path d="m45 22 9 3-9 4" fill="#bc9858"/>
+<path d="M32 18c3-2 7-2 10 0l-2 3-9 1" fill="#244c3a"/>
+<circle cx="41" cy="23" r="2" fill="#fff8dc"/><circle cx="41.5" cy="23" r=".9" fill="#18382c"/>
+<path d="m28 32 6-3m-6 9 7-5" stroke="#f4efcf" stroke-width="1.6" stroke-linecap="round"/></svg>

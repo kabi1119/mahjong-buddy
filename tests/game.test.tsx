@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IDBFactory } from 'fake-indexeddb'
 import App from '../src/App'
@@ -18,6 +18,10 @@ const ready = updateSetup(selected, { type: 'confirm-dealer' })
 const rolled = updateSetup(ready, { type: 'rolled', dice: [1, 2, 3] })
 const playing = updateSetup(rolled, { type: 'dealt' })
 const saved = () => screen.findByText('設定已於此瀏覽器自動儲存')
+function openMore() {
+  const details = document.querySelector('details.secondary-actions') as HTMLDetailsElement | null
+  if (details && !details.open) fireEvent.click(details.querySelector('summary')!)
+}
 beforeEach(() => { vi.stubGlobal('indexedDB', new IDBFactory()) })
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
@@ -54,17 +58,19 @@ describe('game workflow', () => {
     expect(dice).toHaveBeenCalledTimes(1)
     expect((await loadSettings()).setup?.dice).toEqual([1, 2, 3])
     fireEvent.click(screen.getByRole('button', { name: '返回牌桌' }))
+    openMore()
     fireEvent.click(screen.getByRole('button', { name: '重新擲骰並重設配牌' }))
     expect(screen.queryByLabelText(/骰子 1、2、3/)).toBeNull()
     await screen.findByRole('dialog', { name: '開門指引' })
     await saved()
     expect((await loadSettings()).setup?.dice).toEqual([6, 6, 6])
-    fireEvent.click(screen.getByRole('button', { name: '已完成配牌' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: '開門指引' })).getByRole('button', { name: '已完成配牌' }))
     await saved()
     expect((await loadSettings()).setup?.turn).toBe('bottom')
     fireEvent.click(screen.getByRole('button', { name: '下一家' }))
     await saved()
     expect((await loadSettings()).setup?.turn).toBe('right')
+    openMore()
     fireEvent.change(screen.getByLabelText('手動指定玩家'), { target: { value: 'top' } })
     await saved()
     expect((await loadSettings()).setup?.turn).toBe('top')
@@ -72,6 +78,7 @@ describe('game workflow', () => {
     render(<App />)
     await saved()
     expect(screen.getByRole('button', { name: '編輯上方玩家：阿西' }).getAttribute('aria-current')).toBe('true')
+    openMore()
     fireEvent.click(screen.getByRole('button', { name: '重設至東家' }))
     await saved()
     expect((await loadSettings()).setup?.turn).toBe('bottom')
@@ -96,6 +103,7 @@ describe('game workflow', () => {
     await saveSettings({ variant: 'hong-kong', players, setup: playing })
     render(<App />)
     await saved()
+    openMore()
     fireEvent.change(screen.getByLabelText('港式骰子數'), { target: { value: '2' } })
     await saved()
     expect((await loadSettings()).setup).toMatchObject({ hkDiceCount: 2, dice: null, turn: null, phase: 'ready-to-roll' })
@@ -114,6 +122,7 @@ describe('game workflow', () => {
     await saveSettings({ variant: 'hong-kong', players, setup: playing })
     render(<App />)
     await saved()
+    openMore()
     fireEvent.click(screen.getByRole('button', { name: '重設開局（保留牌友）' }))
     await saved()
     expect((await loadSettings()).players).toEqual(players)
@@ -133,6 +142,7 @@ describe('game workflow', () => {
     await saveSettings({ variant: 'hong-kong', players, setup: rolled })
     render(<App />)
     await saved()
+    openMore()
     fireEvent.click(screen.getByRole('button', { name: '重新擲骰並重設配牌' }))
     await screen.findByRole('alert')
     await saved()
@@ -153,7 +163,7 @@ describe('backwards compatible game persistence', () => {
   })
   it('keeps game controls unavailable until restoration finishes', async () => {
     render(<App />)
-    await waitFor(() => expect(screen.getByText('請先設定四位牌友，再選莊、擲骰及開門。')).toBeTruthy())
+    await waitFor(() => expect(screen.getByText('點選座位加入牌友（0/4）')).toBeTruthy())
     expect(screen.queryByRole('button', { name: '確認莊家' })).toBeNull()
   })
 })
