@@ -39,13 +39,13 @@ npm run preview
 
 Switching modes preserves player seats and resets setup. Physical seat labels describe screen positions; Mahjong winds are assigned relative to the selected dealer. Cancelled editor drafts are never saved.
 
-No scoring, tile simulation, automatic physical-action detection, dealer rotation, settlement, authentication, backend, or PWA caching is included. See [rules and chosen variations](rules.md) for verified references, coordinate conventions and limitations.
+Win-triggered hand reconstruction and manual call recording are implemented. No scoring, complete winning-hand validation, tile simulation, automatic physical-action detection, dealer rotation, settlement, authentication, backend, or PWA caching is included. See [rules and chosen variations](rules.md) for verified references, coordinate conventions and limitations.
 
 ## Local storage
 
 - Database: `mahjong-companion`, database version 1. This legacy persistence identifier is intentionally retained after the Mahjong Buddy rename so existing local data remains available on the same browser and origin.
 - Object store: `settings`; single record key: `table`.
-- Record: `{ schemaVersion: 1, variant, players: { [seat]: { nickname, avatar } }, setup? }`. Position is stored only as the map key; the React model reconstructs it when loading. The optional versioned `setup` is additive and retains compatibility with older player records.
+- Record: `{ schemaVersion: 1, variant, players: { [seat]: { nickname, avatar } }, setup?, gameplay? }`. Position is stored only as the map key; the React model reconstructs it when loading. The optional versioned `setup` is additive and retains compatibility with older player records.
 - Database and record versions are separate migration boundaries for future changes. Unsupported record versions are not overwritten.
 - Startup performs a read without saving defaults; editing controls stay disabled until it settles. Confirmed player changes, removals, mode changes and game setup actions enqueue writes. Writes are serialized to preserve the order of rapid changes.
 - A missing record uses defaults. Stored variants, seats, nicknames and avatars are validated; invalid entries are ignored. Nothing is automatically written back during restoration.
@@ -105,8 +105,17 @@ Tests emulate IndexedDB and dialog opening in jsdom. They do not verify native d
 
 ## v0.2.0b interface notes
 
-The displayed patch label is v0.2.0b; package metadata uses valid SemVer 0.2.0-b. The storage schema and identifiers are unchanged. Current wind artwork is 東 for HK and 南 for four-player Riichi. 西 and 北 are metadata-only reservations for planned modes.
+The current application and package version is 0.2.1. The compact mobile and centered desktop layout from v0.2.0b/c is preserved. Database/store/key and record schemaVersion remain unchanged. New gameplay data is an additive, independently versioned field; see the [gameplay model](hand-recording.md). Current wind artwork is 東 for HK and 南 for four-player Riichi. 西 and 北 are metadata-only reservations for planned modes.
 
 The mobile table uses content-sized grid rows and a dynamic-viewport minimum size, capped for larger phones. Safari safe areas are included in spacing and size calculations. Long names, expanded settings, accessibility text and short screens can increase page height; ordinary scrolling is intentional. The current action stays outside the secondary details panel. Player and wall dialogs use their own dynamic-height scroll areas.
 
 Real iPhone Safari, browser chrome, standalone mode, zoom and native dialog focus remain manual verification tasks. The Apple touch icon is branding only: it does not supply offline caching or installation guarantees. Original SVG files are authoritative; PNG icons are raster exports of the same artwork.
+
+## v0.2.1 module map
+
+- `src/features/actions/`: versioned data models, pure event projection, same-ID Pon upgrades, undo/correction, round reconciliation, conservative decoder and player sheet.
+- `src/features/hands/`: complete typed tile catalog, original SVG tile artwork, structural/physical validation and the win-only reconstruction flow.
+- `src/components/Sheet.tsx`: native modal opening, scroll lock and focus restoration.
+- `tests/actions.test.ts`, `tests/hands.test.ts`, `tests/gameplayStorage.test.ts`, `tests/playerActions.test.tsx`: deterministic engine, persistence and component coverage.
+
+The same `useSettings` write queue handles all data. Round reset/variant changes archive actions and drafts instead of deleting them. No alternate persistence system or runtime dependency was added.

@@ -26,7 +26,7 @@ describe('brand and mode artwork', () => {
     render(<App />)
     await saved()
     expect(screen.getByRole('link', { name: '麻雀小夥伴，前往牌桌' }).querySelector('img')?.getAttribute('src')).toBe('/mahjong.svg')
-    expect(screen.getByText('v0.2.0b')).toBeTruthy()
+    expect(screen.getByText('v0.2.1')).toBeTruthy()
     const selector = within(screen.getByRole('group', { name: '麻雀模式' }))
     expect(selector.getAllByRole('button')).toHaveLength(2)
     expect(selector.getByRole('button', { name: '香港麻雀' }).querySelector('img')?.getAttribute('src')).toBe('/icons/wind-east.svg')

@@ -1,3 +1,4 @@
+import { reconcileGameplay } from '../features/actions/reconcile'
 import { useEffect, useRef, useState } from 'react'
 import { defaultSettings, loadSettings, saveSettings } from './settings'
 import type { Settings } from './settings'
@@ -37,10 +38,12 @@ export function useSettings() {
 
   function updateSettings(update: (previous: Settings) => Settings) {
     if (!ready.current) return
-    const next = update(current.current)
+    let next = update(current.current)
     if (next.setup && (next.variant !== current.current.variant || !POSITIONS.every((position) => next.players[position]))) {
       next.setup = newSetup(next.setup.hkDiceCount)
     }
+    next = reconcileGameplay(current.current, next)
+    if (next === current.current) return
     current.current = next
     setSettings(next)
     if (!writable.current) return

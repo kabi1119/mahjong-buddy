@@ -32,7 +32,7 @@ describe('confirmed player configuration', () => {
     fireEvent.click(screen.getByRole('button', { name: '編輯左方玩家：雀后' }))
     setNickname('未確認')
     fireEvent.click(screen.getByRole('radio', { name: '貓咪' }))
-    fireEvent.click(screen.getByRole('button', { name: '取消', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: '取消' }))
     expect((await storage.loadSettings()).players.left?.nickname).toBe('雀后')
     expect((await storage.loadSettings()).players.left?.avatar).toBe('🍮')
 

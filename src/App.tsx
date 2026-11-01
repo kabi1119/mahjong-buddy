@@ -1,3 +1,8 @@
+import { PlayerActions } from './features/actions/PlayerActions'
+import { WinFlow } from './features/hands/WinFlow'
+import { activeRound, projectRound } from './features/actions/engine'
+import { withActiveRound } from './features/actions/reconcile'
+import './features/hands/hands.css'
 import { useState } from 'react'
 import { PlayerEditor } from './features/players/PlayerEditor'
 import { MahjongTable } from './features/table/MahjongTable'
@@ -12,11 +17,15 @@ import { assignSeatWinds } from './features/game/rules'
 import './App.css'
 
 function App() {
-  const { settings: { variant, players, setup: savedSetup }, status, updateSettings } = useSettings()
+  const { settings: { variant, players, setup: savedSetup, gameplay }, status, updateSettings } = useSettings()
   const [editing, setEditing] = useState<PlayerPosition | null>(null)
+  const [actionPlayer, setActionPlayer] = useState<PlayerPosition | null>(null)
+  const [winPlayer, setWinPlayer] = useState<PlayerPosition | null>(null)
   const [editingPlayers, setEditingPlayers] = useState(false)
   const [rolling, setRolling] = useState(false)
   const setup = savedSetup ?? newSetup()
+  const round = activeRound(gameplay)
+  const riichiSeats = round && gameplay ? projectRound(gameplay, round.id).riichi.map((item) => item.playerId) : []
   const playerCount = POSITIONS.filter((position) => players[position]).length
   const complete = playerCount === 4
   const pickingDealer = complete && setup.phase === 'selecting-dealer' && !editingPlayers
@@ -29,7 +38,7 @@ function App() {
     : rolling ? '正在擲骰，請稍候…'
     : setup.phase === 'ready-to-roll' ? `${dealerName} 做莊 · ${diceCountFor(variant, setup)} 粒骰子，準備開門`
     : setup.phase === 'wall-guide' ? `${setup.dice?.reduce((sum, die) => sum + die, 0)} 點 · 按指引配牌，完成後確認`
-    : `手動記錄：${players[setup.turn!]?.nickname}（${turnWind}）行牌`
+    : `手動：${players[setup.turn!]?.nickname}（${turnWind}）行牌 · 點牌友記錄動作`
 
   return (
     <main className="app-shell">
@@ -55,8 +64,8 @@ function App() {
           <div><p className="eyebrow">LET’S PLAY</p><h1 id="table-heading">齊人，開枱。</h1></div>
           <span className="table-variant">{variant === 'hong-kong' ? '港式四人' : '四人立直'}</span>
         </div>
-        <MahjongTable players={players} variant={variant} setup={setup} pickingDealer={pickingDealer}
-          onEdit={(position) => { if (pickingDealer) dispatch({ type: 'dealer', position }); else setEditing(position) }}
+        <MahjongTable players={players} variant={variant} setup={setup} pickingDealer={pickingDealer} riichiSeats={riichiSeats}
+          onEdit={(position) => { if (pickingDealer) dispatch({ type: 'dealer', position }); else if (setup.phase === 'playing') { if (!round) updateSettings(withActiveRound); setActionPlayer(position) } else setEditing(position) }}
           disabled={status === 'loading' || rolling} />
         <p className="table-hint" aria-live="polite">{context}</p>
       </section>
@@ -69,6 +78,12 @@ function App() {
           {status === 'loading' ? '正在讀取本機設定…' : status === 'saving' ? '正在儲存設定…' : status === 'saved' ? '設定已於此瀏覽器自動儲存' : status === 'unavailable' ? '無法讀取本機設定；本次變更只保留至重新整理，未覆寫原有資料。' : '未能儲存最新設定；請保留此頁面，下次確認變更時會再嘗試。'}
         </span>
       </footer>
+      {actionPlayer && round && gameplay && setup.phase === 'playing' && <PlayerActions data={gameplay} playerId={actionPlayer}
+        onChange={(data) => updateSettings((current) => ({ ...current, gameplay: data }))}
+        onClose={() => setActionPlayer(null)} onEdit={() => { setEditing(actionPlayer); setActionPlayer(null) }}
+        onWin={() => { setWinPlayer(actionPlayer); setActionPlayer(null) }} />}
+      {winPlayer && round && gameplay && setup.phase === 'playing' && <WinFlow data={gameplay} playerId={winPlayer}
+        onChange={(data) => updateSettings((current) => ({ ...current, gameplay: data }))} onClose={() => setWinPlayer(null)} />}
       {editing && <PlayerEditor key={editing} position={editing} player={players[editing]}
         onSave={(player) => { updateSettings((current) => ({ ...current, players: { ...current.players, [player.position]: player } })); setEditing(null) }}
         onRemove={() => { updateSettings((current) => { const remaining = { ...current.players }; delete remaining[editing]; return { ...current, players: remaining } }); setEditing(null) }}
