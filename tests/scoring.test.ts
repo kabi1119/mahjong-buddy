@@ -10,7 +10,7 @@ import { evaluateWin } from '../src/features/scoring/evaluate'
 import { tileInstance } from '../src/features/hands/tiles'
 import { draftFor, parseTiles, reviewedConditions, scoringGame } from './scoringFixtures'
 const conditions = reviewedConditions()
-const jp = defaultRiichi(); const profile = defaultRiichiScoreRules()
+const profile = { ...defaultRiichiScoreRules(), doubleYakuman: false, namedDoubleVariants: false }; const jp = { ...defaultRiichi(), scoring: profile }
 const score = (draft: ReturnType<typeof draftFor>, riichi = false) => scoreRiichi(draft, jp, conditions, riichi, 28, 27)
 describe('independently specified Riichi scoring examples', () => {
   it('scores closed Pinfu Ron as 1 Han 30 Fu and Tsumo as 2 Han 20 Fu', () => {

@@ -6,13 +6,13 @@ import { isFive, isTileType, newId, sequenceFrom } from '../hands/tiles'
 import type { TileType } from '../hands/tiles'
 import type { ActionInput, GameplayData, Meld, MeldKind, PlayerAction, RiichiDeclaration, RoundContext } from './models'
 
-export const emptyGameplay = (): GameplayData => ({ version: 2, activeRoundId: null, rounds: [], actions: [], drafts: [] })
+export const emptyGameplay = (): GameplayData => ({ version: 3, activeRoundId: null, rounds: [], actions: [], drafts: [] })
 export function archiveRound(data: GameplayData): GameplayData {
   return { ...data, activeRoundId: null, rounds: data.rounds.map((round) => round.id === data.activeRoundId ? { ...round, status: 'archived' } : round) }
 }
 export function beginRound(data: GameplayData, variant: MahjongVariant, dealer: PlayerPosition, players: Record<PlayerPosition, Player>, id: string = newId()): GameplayData {
   const archived = archiveRound(data)
-  return { ...archived, version: 2, activeRoundId: id, rounds: [...archived.rounds, { id, variant, dealer, players: structuredClone(players), createdAt: Date.now(), status: 'active' }] }
+  return { ...archived, version: 3, activeRoundId: id, rounds: [...archived.rounds, { id, variant, dealer, players: structuredClone(players), createdAt: Date.now(), status: 'active' }] }
 }
 export const activeRound = (data?: GameplayData) => data?.rounds.find((round) => round.id === data.activeRoundId && round.status === 'active')
 export function getEligibleAddedKanMelds(playerId: PlayerPosition, roundId: string, melds: readonly Meld[], tile?: TileType): Meld[] {

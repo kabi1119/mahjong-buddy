@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "麻雀小夥伴 · Mahjong Buddy",
+  "short_name": "麻雀小夥伴",
+  "lang": "zh-HK",
+  "description": "為實體麻雀牌局而設的牌桌、計分與結算助手",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f3e7",
+  "theme_color": "#244f3f",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

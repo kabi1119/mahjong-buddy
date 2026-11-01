@@ -14,7 +14,7 @@ export function syncRoundIndicators(data: GameplayData): GameplayData {
   const previous = round.dora?.entries ?? []
   const entries: RoundIndicator[] = [previous.find((entry) => entry.kind === 'initial') ?? { id: `initial:${round.id}`, kind: 'initial', timing: 'immediate', status: 'pending', revision: 0 }, ...kans.map((meld): RoundIndicator => previous.find((entry) => entry.kind === 'kan' && entry.meldId === meld.id) ?? { id: `kan:${meld.id}`, kind: 'kan', meldId: meld.id, timing: profile.kanReveal === 'immediate' || meld.kind === 'ankan' ? 'immediate' : 'after-discard', status: 'pending', revision: 0 })]
   if (JSON.stringify(previous) === JSON.stringify(entries)) return data
-  return { ...data, version: 2, rounds: data.rounds.map((item) => item.id === round.id ? { ...item, dora: { version: 1, entries } } : item) }
+  return { ...data, version: 3, rounds: data.rounds.map((item) => item.id === round.id ? { ...item, dora: { version: 1, entries } } : item) }
 }
 export function updateIndicator(data: GameplayData, id: string, status: RoundIndicator['status'], type?: TileType, red = false): GameplayData {
   const synced = syncRoundIndicators(data); const round = activeRound(synced)

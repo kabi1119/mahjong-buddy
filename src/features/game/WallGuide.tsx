@@ -69,6 +69,7 @@ export function WallGuide({ result, dice, dealer, players, onClose, onDealt }: P
             return <g><circle cx={x} cy={y} r="5" fill="#be624a" stroke="#fff3d5" strokeWidth="1.5" /><text x={x + (x > 160 ? -12 : 12)} y={y + (y > 160 ? -12 : 15)} textAnchor="middle" fill="#fff3d5" fontSize="11" fontWeight="700">{result.total}</text></g>
           })()}
         </svg>
+        <p className="wall-directions"><strong>↻ 順時針取牌</strong> · <strong>↺ 逆時針輪流出牌</strong><br />沿實體牌牆順時針配牌／取牌；玩家按逆時針次序輪流出牌。</p>
         <ul className="wall-owners">{POSITIONS.map((wall) => <li key={wall}>{POSITION_LABELS[wall]}：{owner(wall)}</li>)}</ul>
         <p>從玩家右端（{direction.start}）沿{direction.direction}數 {result.total} 棟，在紅點開門。綠色「始」為第一棟取牌位置，由此順時針配牌，跨角繼續。</p>
         {result.dora ? <p className="dead-wall-hint">金色：王牌 · ★：寶牌指示牌<br />槓後：由王牌的嶺上牌補一張</p> : <p>「尾」：補花／補槓端，逆普通取牌方向取用。</p>}

@@ -1,3 +1,4 @@
+import { InstallOnboarding } from './features/install/InstallOnboarding'
 import { Sheet } from './components/Sheet'
 import { IndicatorEditor } from './features/scoring/IndicatorEditor'
 import { prepareRoundIndicators } from './features/scoring/indicators'
@@ -117,7 +118,7 @@ function App() {
       </section>
       {round?.variant === 'riichi' && setup.phase === 'playing' && pendingIndicators.length > 0 && <button className="secondary-button action-wide" type="button" onClick={() => setIndicatorOpen(true)}>寶牌／新槓寶牌待確認</button>}
       {pendingFour && pendingFour.status !== 'win-pending' && setup.phase === 'playing' && <button className="four-kan-notice secondary-button" type="button" onClick={() => setMatchView('four-kan')}>四槓散了條件 · 核對第四槓結果</button>}
-      {match && ['between', 'end-decision', 'ended'].includes(match.phase) ? <button className="secondary-button" type="button" onClick={() => setMatchView('summary')}>查看本局結果及準備下一局</button> : <GameControls key={variant} variant={variant} players={players} setup={setup}
+      {match && ['between', 'end-decision', 'ended'].includes(match.phase) ? <button className="secondary-button" type="button" onClick={() => setMatchView('summary')}>查看上一局結果</button> : <GameControls key={variant} variant={variant} players={players} setup={setup}
         disabled={status === 'loading'} onAction={dispatch} onBusyChange={setRolling}
         onSelectDealer={() => setEditingPlayers(false)} editingPlayers={editingPlayers}
         onEditPlayers={() => setEditingPlayers((value) => !value)} fixedDealer={!!match}
@@ -127,7 +128,7 @@ function App() {
         <span role="status" className={status === 'error' || status === 'unavailable' ? 'storage-warning' : 'storage-status'}>
           {status === 'loading' ? '正在讀取本機設定…' : status === 'saving' ? '正在儲存設定…' : status === 'saved' ? '設定已於此瀏覽器自動儲存' : status === 'unavailable' ? '無法讀取本機設定；本次變更只保留至重新整理，未覆寫原有資料。' : '未能儲存最新設定；請保留此頁面，下次確認變更時會再嘗試。'}
         </span>
-        <p>測試版 · 計分及結算須核對家規<br />資料只存於此瀏覽器／裝置，不會同步；清除瀏覽資料可能移除記錄。 <a href="https://github.com/kabi1119/mahjong-buddy/issues" target="_blank" rel="noreferrer">回報問題</a></p>
+        <p>正式版 · 計分及結算須核對家規<br />資料只存於此瀏覽器／裝置，不會同步；清除瀏覽資料可能移除記錄。 <a href="https://github.com/kabi1119/mahjong-buddy/issues" target="_blank" rel="noreferrer">回報問題</a></p>
       </footer>
       {rulesOpen && <MatchSettings settings={settings} onSave={updateSettings} onClose={() => setRulesOpen(false)} />}
       {match && !rulesOpen && !showIndicators && !viewingWin && !actionPlayer && !winPlayer && (matchView || autoFour) && <MatchFlow key={match.roundId + (matchView ?? 'auto')} settings={settings} view={matchView ?? (autoFour ? 'four-kan' : 'summary')} onUpdate={updateSettings} onClose={() => { setMatchView(null); if (pendingFour) setDismissedFour(pendingFour.signature) }} onRules={() => { setMatchView(null); setRulesOpen(true) }} onWin={setWinPlayer} onIndicators={() => { setMatchView(null); setIndicatorOpen(true) }} onViewWin={setViewingWin} /> }
@@ -145,6 +146,7 @@ function App() {
         onSave={(player) => { updateSettings((current) => ({ ...current, players: { ...current.players, [player.position]: player } })); setEditing(null) }}
         onRemove={() => { updateSettings((current) => { const remaining = { ...current.players }; delete remaining[editing]; return { ...current, players: remaining } }); setEditing(null) }}
         onClose={() => setEditing(null)} />}
+      <InstallOnboarding ready={status !== 'loading'} blocked={!!(rulesOpen || matchView || autoFour || actionPlayer || winPlayer || viewingWin || editing || showIndicators || rolling || match?.winPending || gameplay?.wins?.some((win) => win.roundId === gameplay.activeRoundId && win.status === 'locked'))} />
     </main>
   )
 }

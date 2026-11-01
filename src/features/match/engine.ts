@@ -6,6 +6,7 @@ import type { GameplayData } from '../actions/models'
 import { newId } from '../hands/tiles'
 import { getNextPlayer } from '../game/rules'
 import { newSetup } from '../game/setup'
+import { defaultHKScoreRules, defaultRiichiScoreRules } from '../scoring/models'
 import { defaultPreferences } from './rules'
 import type { MatchRules, JapaneseRiichiRules } from './rules'
 import type { MatchCursor, MatchState, Points, RoundOutcome, Tenpai } from './models'
@@ -23,6 +24,7 @@ export function roundLabel(match?: Pick<MatchState, 'variant' | 'roundWind' | 'k
 }
 export function createMatch(data: GameplayData, rules: MatchRules, legacy: boolean): MatchState {
   const round = activeRound(data)!
+  if (!legacy) rules = rules.variant === 'hong-kong' ? { ...rules, scoring: { ...defaultHKScoreRules(), ...rules.scoring, firstTurn: 'v1', baseUnit: rules.scoring?.baseUnit ?? 1 } } : { ...rules, scoring: { ...defaultRiichiScoreRules(), ...rules.scoring } }
   const points = Object.fromEntries(POSITIONS.map((seat) => [seat, rules.variant === 'riichi' ? rules.startingPoints : 0])) as Points
   const legacyIds = legacy ? projectRound(data, round.id).riichi.map((item) => item.actionId) : []
   return { version: 1, id: newId(), variant: round.variant, initialDealer: round.dealer, dealer: round.dealer,
@@ -147,4 +149,10 @@ export function resetMatch(settings: Settings, clearPlayers: boolean): Settings 
 export function frozenRiichiRules(data: GameplayData, roundId: string): JapaneseRiichiRules | undefined {
   const match = [data.match, ...(data.pastMatches ?? [])].find((item) => item?.roundId === roundId || item?.history.some((outcome) => outcome.roundId === roundId))
   return match?.rules.variant === 'riichi' ? match.rules : undefined
+}
+
+export function completeLegacyHKUnit(settings: Settings, unit: number): Settings {
+  const data = settings.gameplay; const match = data?.match
+  if (!data || !match || match.rules.variant !== 'hong-kong' || match.rules.scoring?.baseUnit !== undefined || !Number.isSafeInteger(unit) || unit <= 0 || data.wins?.some((win) => win.roundId === match.roundId && win.status !== 'reversed')) throw new Error('只可為未鎖定且缺少底額的港式牌局明確補設正整數。')
+  return { ...settings, gameplay: { ...data, match: { ...match, rules: { ...match.rules, scoring: { version: 1, kankan: 8, sevenPairs: false, ronMultiplier: 2, tsumoMultiplier: 1, ...match.rules.scoring, baseUnit: unit } } } } }
 }

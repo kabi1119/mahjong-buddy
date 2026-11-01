@@ -88,7 +88,7 @@ The configured minimum applies, and effective Fan is capped at 10 or 13. HK norm
 
 ### HK money/point units
 
-No monetary base is guessed. The user explicitly supplies an integer zero-Fan one-share base and the Ron/Tsumo share multipliers, or an explicit Fan table. Defaults for share multipliers are Ron one discarder pays 2 shares; Tsumo each opponent pays 1 share. These are visible configurable payment conventions, not an assertion that all HK tables use the same denomination. Use the table's chosen integer denomination (for example points or smallest currency units) consistently.
+New v1.0.0 matches use the selected default integer base of 1 (editable before play); legacy frozen matches with a missing value require explicit completion. The following share conventions and integer definitions apply. Defaults for share multipliers are Ron one discarder pays 2 shares; Tsumo each opponent pays 1 share. These are visible configurable payment conventions, not an assertion that all HK tables use the same denomination. Use the table's chosen integer denomination (for example points or smallest currency units) consistently.
 
 Full-la multiplier = 2^Fan. Half-la uses 1/2/4/8/16 at Fan 0–4, then 24/32/48/64/96/128/192/256/384 through Fan 13. Multiply this by the explicit unit, then by the corresponding shares. A custom row's Ron is the one discarder’s complete payment; its Tsumo is each non-winning player's payment. No extra multiplier is applied to a custom row. All actual transfers must be safe integers; the four HK deltas sum to zero. Missing units/rows or fractional final amounts block settlement. Legacy fractional preferences stay readable for review, not silently rounded.
 
@@ -102,7 +102,7 @@ Fu: base 20; closed Ron +10; ordinary Tsumo +2; qualifying pair +2 or configured
 
 Base = Fu × 2^(Han+2), capped as appropriate: Mangan 2,000; Haneman 3,000; Baiman 4,000; Sanbaiman 6,000; Yakuman 8,000 per applicable genuine multiple. Ron pays rounded-up-to-100 base ×6 for dealer or ×4 for non-dealer; Tsumo pays base ×2 from each opponent for dealer, or ×2 from dealer and ×1 from others for non-dealer. Honba adds 300 to Ron or 100 from each Tsumo payer. The existing deposit pool is awarded once, with no second declaration debit. Player deltas plus pool delta must sum to zero.
 
-Casual scoring defaults: Kiriage off; Kazoe Yakuman for 13+ Han; double-Yakuman variants off; genuine Yakuman stacking on; open Tanyao on; double-wind pair 4 Fu. Optional doubles apply to thirteen-sided Kokushi, Suuankou Tanki, Daisuushii and pure Nine Gates. Disabling stacking keeps the highest individual applicable Yakuman value. Kazoe is never added as another genuine Yakuman condition. WRC conventions differ, including Kiriage, counted limits and double-wind pairs; choose rules explicitly.
+RC4/RC5 defaults retained by historical frozen matches: Kiriage off; Kazoe Yakuman for 13+ Han; double-Yakuman variants off; genuine Yakuman stacking on; open Tanyao on; double-wind pair 4 Fu. Optional doubles apply to thirteen-sided Kokushi, Suuankou Tanki, Daisuushii and pure Nine Gates. Disabling stacking keeps the highest individual applicable Yakuman value. Kazoe is never added as another genuine Yakuman condition. WRC conventions differ, including Kiriage, counted limits and double-wind pairs; choose rules explicitly.
 
 ### RC5 Kazoe policies
 
@@ -131,3 +131,17 @@ A complete reliable result enables final preview. A second explicit confirmation
 Exceptional correction uses a reasoned audited reversal of the newest win, only before the next hand has actions or drafts. Restore pre-win balances/pool/setup/dealer, mark the win transaction reversed and retain the original locked snapshot. Animation/replay never calls settlement.
 
 Unsupported: multiple Ron, split-discard/Responsibility/Pao payments, Renhou and unlisted local Yaku, penalties, Uma/placement settlement, Tobi/automatic bankruptcy ending, flower-instant combinations and fractional transfers. Known potentially liable open Dragon/Wind/Four-Kan or HK twelve-exposed Tsumo cases are conservatively blocked. Physically untracked legality must be manually confirmed; no app can infer the missing discard history from the winning hand alone.
+
+## v1.0.0 正式版規則與相容範圍
+
+新港式牌局凍結 `firstTurn: v1`：天糊為莊家配牌後立即自摸，地糊為無先前上／碰／槓的閒家第一摸，人糊為閒家食莊家第一張棄牌（須開局前啟用，預設關閉）。三者皆為 13 番例牌，再受 10／13 番封頂限制。贏牌方式下方以「否／是」欄明確選擇首巡情境；未知完整實體歷史仍由使用者確認，已知矛盾動作、錯誤方式／莊閒／出銃來源會被拒絕。
+
+舊 RC5 凍結規則沒有此標記，仍按舊地糊＝食莊家第一棄、人糊＝閒家首摸處理。舊鎖定及已結算快照、番數、付款不會重新標示或重算。
+
+新港式牌局預設零番一份底額 **1**，半辣／辣辣及出銃／自摸份數均使用凍結設定，自訂表仍獨立。這是牌桌選定的單位，不假定貨幣。原有明確金額保留；舊未結算牌局缺值時，須在摘要明確補設一次，已鎖定牌局不准改值。歷史付款原封保留。
+
+新日本四麻預設啟用真正雙倍役滿，可在開局前關閉：大四喜、純正九蓮寶燈、國士無雙十三面待ち、四暗刻單騎為兩倍；小四喜、普通九蓮、普通國士、非單騎四暗刻為單倍。根據實際和牌張與和牌前牌形辨別；結果顯示相應名稱。天和／地和為單倍真正役滿，可按原有複合規則與其他真正役滿結合。舊局的雙倍開關和舊名稱不改。累計役滿的三個政策維持 RC5 行為，絕不與真正役滿相加。
+
+新手牌流程以 `workflow: 2` 表達普通食糊／和牌，不再要求舊的五個勾選。只有一個可選例外欄；選取後阻止普通自動結算。這不代表程式能驗證未記錄的過水、振聽或實體摸打。所有確定性牌型、副本、指示牌、已知責任支付及來源限制照常檢查。首巡、搶槓、槓上、海底等正常支援情境用獨立欄選擇，不當成不支援例外。
+
+先預覽並鎖定手牌，再進入手牌／計分畫面。按「下一步：查看四家結算」只切換至獨立四家預覽，約 1.7 秒數字動畫亦不付款。只有「確認結算並結束本局」提交帳本；返回、重播、重新整理、重開舊結果都不能重複支付。本場、供託、冧莊、下一局與審計撤銷沿用原有帳本規則。

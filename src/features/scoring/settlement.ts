@@ -19,7 +19,7 @@ export function lockWinningHand(data: GameplayData, draft: HandDraft, conditions
   const saved = saveDraft(data, snapshot, true)
   const lockedDraft: HandDraft = structuredClone({ ...snapshot, status: 'confirmed' })
   const win: LockedWin = { version: 1, id: newId(), roundId: draft.roundId, draft: lockedDraft, conditions: structuredClone(conditions), rules: structuredClone(data.match!.rules), score, fingerprint: scoringFingerprint(data), inputFingerprint: JSON.stringify([lockedDraft, conditions, data.match!.rules]), lockedAt: Date.now(), status: 'locked' }
-  return { ...saved, version: 2, wins: [...(saved.wins ?? []), win], match: { ...saved.match!, winPending: true } }
+  return { ...saved, version: 3, wins: [...(saved.wins ?? []), win], match: { ...saved.match!, winPending: true } }
 }
 function cursor(match: MatchState): MatchCursor {
   const { dealer, roundWind, kyoku, sequence, honba, points, pool, phase, roundId, winPending } = match

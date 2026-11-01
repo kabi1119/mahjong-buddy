@@ -27,11 +27,13 @@ export function validateWinContext(data: GameplayData, draft: HandDraft, conditi
   const ruleErrors = validateRules(match.rules)
   if (ruleErrors.length) throw new Error(ruleErrors.join(' '))
   if (match.legacyUnreconciled) throw new Error('舊局須先由牌局摘要核對實際點數及供託。')
-  if (!draft.reviewedMelds) throw new Error('請完成遺漏副露檢查；程式不會假設門前清。')
-  if (conditions.version !== 1 || !conditions.reviewed) throw new Error('請核對情境條件；不會自動假設特殊役成立。')
-  if (!conditions.legalWinConfirmed) throw new Error('請自行核對振聽／過水、宣告時機及實體和牌資格；程式沒有逐次棄牌資料。')
-  if (!conditions.singleWinner) throw new Error('多家同時和牌尚未支援，不能當單一和牌結算。')
-  if (!conditions.noResponsibility) throw new Error('包牌／責任支付尚未支援，請先在實體牌桌處理，不會套用普通結算。')
+  const ordinary = conditions.workflow === 2
+  if (ordinary && conditions.exceptional !== false) throw new Error('特殊合法性／包牌／多家食糊情況須另行處理，不能自動結算。')
+  if (!ordinary && !draft.reviewedMelds) throw new Error('請完成遺漏副露檢查；程式不會假設門前清。')
+  if (conditions.version !== 1 || (!ordinary && !conditions.reviewed)) throw new Error('請核對情境條件；不會自動假設特殊役成立。')
+  if (!ordinary && !conditions.legalWinConfirmed) throw new Error(draft.variant === 'hong-kong' ? '請自行核對過水、宣告時機及實體食糊資格。' : '請自行核對振聽、宣告時機及實體和牌資格。')
+  if (!ordinary && !conditions.singleWinner) throw new Error('多家同時和牌尚未支援，不能當單一和牌結算。')
+  if (!ordinary && !conditions.noResponsibility) throw new Error('包牌／責任支付尚未支援，請先在實體牌桌處理，不會套用普通結算。')
   if (match.roundWind > 3) throw new Error('延長圈的圈風未明確設定，不能可靠計分。')
   const problems = validateDraft(draft, data, true)
   if (problems.length) throw new Error(problems.join(' '))
@@ -60,15 +62,19 @@ export function validateWinContext(data: GameplayData, draft: HandDraft, conditi
   const tsumo = draft.win.method === 'tsumo'
   if (conditions.rinshan && (!tsumo || !draft.melds.some((meld) => meld.tiles.length === 4))) throw new Error('嶺上／槓上自摸需要完成的槓及自摸。')
   if (conditions.consecutiveKan && (!tsumo || draft.melds.filter((meld) => meld.tiles.length === 4).length < 2)) throw new Error('連槓開花需要至少兩組完成的槓及自摸。')
-  if ((conditions.chankan || conditions.houtei || conditions.hkEarth) && tsumo) throw new Error('搶槓／河底榮和／地糊需要棄牌和牌。')
-  if ((conditions.haitei || conditions.tenhou || conditions.chiihou || conditions.hkHeaven || conditions.hkHuman) && !tsumo) throw new Error('所選情境需要自摸。')
+  const hkV1 = match.rules.variant === 'hong-kong' && match.rules.scoring?.firstTurn === 'v1'
+  const earthRon = hkV1 ? conditions.hkHuman : conditions.hkEarth
+  const earthTsumo = hkV1 ? conditions.hkEarth : conditions.hkHuman
+  if (hkV1 && conditions.hkHuman && match.rules.variant === 'hong-kong' && !match.rules.scoring?.humanWin) throw new Error('本局未啟用人糊家規。')
+  if ((conditions.chankan || conditions.houtei || earthRon) && tsumo) throw new Error(draft.variant === 'hong-kong' ? '搶槓／海底出銃／首巡出銃情境需要食取棄牌。' : '搶槓／河底榮和需要棄牌和牌。')
+  if ((conditions.haitei || conditions.tenhou || conditions.chiihou || conditions.hkHeaven || earthTsumo) && !tsumo) throw new Error('所選情境需要自摸。')
   if (Number(conditions.rinshan) + Number(conditions.chankan) + Number(conditions.haitei) + Number(conditions.houtei) > 1) throw new Error('嶺上、搶槓、海底及河底不能同時成立。')
   if (Number(conditions.tenhou) + Number(conditions.chiihou) + Number(conditions.hkHeaven) + Number(conditions.hkEarth) + Number(conditions.hkHuman) > 1) throw new Error('首巡特殊和牌情境互相矛盾。')
   if (conditions.tenhou || conditions.chiihou || conditions.hkHeaven || conditions.hkEarth || conditions.hkHuman) {
     if (view.melds.length || draft.melds.length) throw new Error('首巡特殊和牌不可與任何已記錄副露／槓並存。')
-    if ((conditions.tenhou || conditions.hkHeaven) !== (draft.winner === match.dealer)) throw new Error('天和／天糊屬莊家；地和／地糊／人糊屬閒家。')
+    if ((conditions.tenhou || conditions.hkHeaven) !== (draft.winner === match.dealer)) throw new Error(draft.variant === 'hong-kong' ? '天糊屬莊家；地糊／人糊屬閒家。' : '天和屬莊家；地和屬閒家。')
     if (riichi || conditions.haitei || conditions.houtei || conditions.rinshan || conditions.chankan) throw new Error('首巡和牌與立直或牌尾／槓情境矛盾。')
-    if (conditions.hkEarth && draft.win.sourcePlayer !== match.dealer) throw new Error('港式地糊須食莊家第一張棄牌。')
+    if (earthRon && draft.win.sourcePlayer !== match.dealer) throw new Error(hkV1 ? '人糊須食莊家第一張棄牌。' : '舊家規地糊須食莊家第一張棄牌。')
   }
   const allPhysical = [...draft.concealed, ...draft.melds.flatMap((meld) => meld.tiles), ...(draft.winningTile ? [draft.winningTile] : []), ...draft.indicators.map((item) => item.tile), ...view.melds.filter((meld) => meld.playerId !== draft.winner).flatMap((meld) => meld.tiles)]
   const unique = new Map(allPhysical.map((tile) => [tile.id, tile]))
@@ -113,7 +119,7 @@ export function evaluateWin(data: GameplayData, input: HandDraft, conditions: Wi
     summary = { variant: 'riichi', ...score, rawFan: 0, fan: 0 }
   } else {
     const score = scoreHongKong(draft, match.rules, conditions, seatWind, roundWind)
-    const profile = match.rules.scoring ?? defaultHKScoreRules()
+    const profile = match.rules.scoring ?? { ...defaultHKScoreRules(), baseUnit: undefined }
     let ron: number; let tsumo: number
     if (match.rules.payment === 'custom') {
       const row = match.rules.payouts.find((item) => item.fan === score.fan)

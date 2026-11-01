@@ -23,9 +23,6 @@ async function openBuilder(variant: 'hong-kong' | 'riichi' = 'hong-kong') {
   expect(screen.queryByRole('button', { name: '一萬' })).toBeNull()
   fireEvent.click(screen.getByRole('button', { name: '繼續重建贏牌' })); await saved()
 }
-function confirmReviews() {
-  for (const name of [/已核對所有副露/, /已核對和牌方式/, /已自行核對/, /只有這位贏家/, /沒有包牌/]) fireEvent.click(screen.getByRole('checkbox', { name }))
-}
 beforeEach(() => vi.stubGlobal('indexedDB', new IDBFactory()))
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('RC4 verified win-only Hand Builder', () => {
@@ -33,11 +30,12 @@ describe('RC4 verified win-only Hand Builder', () => {
     await launch(); await openBuilder()
     for (const [name, count] of [['一萬', 3], ['二萬', 3], ['三萬', 3], ['四萬', 3], ['五萬', 2]] as const) for (let index = 0; index < count; index++) fireEvent.click(screen.getByRole('button', { name }))
     expect(screen.getByRole('button', { name: '確認手牌' })).toHaveProperty('disabled', true)
-    fireEvent.change(screen.getByLabelText('本次港式付款基本單位'), { target: { value: '1' } }); confirmReviews()
+    await saved()
+    expect(screen.getAllByRole('checkbox')).toHaveLength(1)
     fireEvent.click(screen.getByRole('button', { name: '確認手牌' }))
     expect(screen.getByRole('dialog', { name: '確認最後手牌' })).toBeTruthy()
     expect((await loadSettings()).gameplay?.wins).toBeUndefined()
-    fireEvent.click(screen.getByRole('button', { name: '返回檢查' }))
+    fireEvent.click(screen.getByRole('button', { name: '返回修改' }))
     expect(screen.queryByRole('dialog', { name: '確認最後手牌' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '確認手牌' })); fireEvent.click(screen.getByRole('button', { name: '確認並鎖定' })); await saved()
     let stored = await loadSettings()
@@ -45,7 +43,12 @@ describe('RC4 verified win-only Hand Builder', () => {
     expect(stored.gameplay!.match!.points).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
     expect(stored.setup!.phase).toBe('playing')
     expect(screen.queryByRole('button', { name: '一萬' })).toBeNull()
-    fireEvent.click(screen.getByRole('checkbox', { name: /四位玩家已核對/ })); fireEvent.click(screen.getByRole('button', { name: '確認結算並結束本局' })); await saved()
+    expect(screen.queryByRole('button', { name: '確認結算並結束本局' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '下一步：查看四家結算' }))
+    expect((await loadSettings()).gameplay!.match!.points.bottom).toBe(0)
+    fireEvent.click(screen.getByRole('button', { name: '返回手牌及計分' }))
+    fireEvent.click(screen.getByRole('button', { name: '下一步：查看四家結算' }))
+    fireEvent.click(screen.getByRole('button', { name: '確認結算並結束本局' })); await saved()
     stored = await loadSettings(); expect(stored.setup!.phase).toBe('ready-to-roll'); expect(stored.gameplay!.match!.points.bottom).toBe(1152)
     fireEvent.click(screen.getByRole('button', { name: '重播結果動畫' }))
     expect((await loadSettings()).gameplay!.match!.points).toEqual(stored.gameplay!.match!.points)
@@ -65,20 +68,21 @@ describe('RC4 verified win-only Hand Builder', () => {
   })
   it('saves and resumes incomplete drafts with a stable winning tile after remount', async () => {
     const app = await launch(); await openBuilder(); fireEvent.click(screen.getByRole('button', { name: '一萬' }))
-    fireEvent.click(screen.getByRole('button', { name: '儲存未完成草稿' })); await saved()
+    await saved()
     const stored = (await loadSettings()).gameplay!; const id = stored.drafts[0].winningTile!.id
     expect(stored.drafts[0]).toMatchObject({ status: 'draft', winningTile: { type: '1m' } }); expect(stored.drafts[0].concealed).toHaveLength(0)
     app.unmount(); await launch('hong-kong', stored)
     fireEvent.click(seat()); fireEvent.click(screen.getByRole('button', { name: '食糊' })); fireEvent.click(screen.getByText(/繼續已儲存草稿/)); fireEvent.click(screen.getByRole('button', { name: /繼續草稿 ·/ }))
     expect(screen.getByRole('button', { name: '移除一萬' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '儲存未完成草稿' })); await saved()
+    await saved()
     expect((await loadSettings()).gameplay!.drafts[0].winningTile!.id).toBe(id)
   })
-  it('cancels unsaved input without inventing a lock or result', async () => {
+  it('closes safely while auto-saving without inventing a lock or result', async () => {
     await launch(); await openBuilder(); fireEvent.click(screen.getByRole('button', { name: '一萬' }))
-    fireEvent.click(screen.getByRole('button', { name: '關閉' })); expect(screen.getByRole('heading', { name: '放棄未儲存修改？' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '繼續編輯' })); fireEvent.click(screen.getByRole('button', { name: '關閉' })); fireEvent.click(screen.getByRole('button', { name: '放棄未儲存修改' }))
-    const data = (await loadSettings()).gameplay!; expect(data.drafts).toHaveLength(0); expect(data.wins).toBeUndefined()
+    fireEvent.click(screen.getByRole('button', { name: '關閉' })); await saved()
+    const data = (await loadSettings()).gameplay!; expect(data.drafts).toHaveLength(1); expect(data.wins).toBeUndefined()
+    fireEvent.click(seat()); fireEvent.click(screen.getByRole('button', { name: '食糊' })); fireEvent.click(screen.getByRole('button', { name: '繼續重建贏牌' }))
+    expect(screen.getByRole('button', { name: '移除一萬' })).toBeTruthy()
   })
   it('uses shared visible indicators and only allows Ura for confirmed Riichi', async () => {
     const data = recordAction(newGame('riichi'), 'bottom', { kind: 'riichi', confirmed: true })
@@ -87,7 +91,7 @@ describe('RC4 verified win-only Hand Builder', () => {
     fireEvent.click(screen.getByText('本局寶牌與槓寶牌（所有玩家共用）'))
     expect(screen.getByText(/實際寶牌（自動計算）：北/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /輸入實際裏寶牌/ })); fireEvent.click(screen.getByRole('button', { name: '三萬' }))
-    fireEvent.click(screen.getByRole('button', { name: '儲存未完成草稿' })); await saved()
+    await saved()
     const stored = (await loadSettings()).gameplay!
     expect(stored.drafts[0].indicators).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'dora', tile: expect.objectContaining({ type: 'west' }) }), expect.objectContaining({ kind: 'ura', tile: expect.objectContaining({ type: '3m' }) })]))
   })
@@ -100,6 +104,7 @@ describe('RC4 verified win-only Hand Builder', () => {
     fireEvent.click(screen.getByRole('button', { name: '三萬' })); fireEvent.click(screen.getByRole('button', { name: '四萬' }))
     fireEvent.click(screen.getByRole('button', { name: '改選和牌張' })); fireEvent.click(screen.getByRole('button', { name: '指定和牌張：三萬' }))
     expect(within(screen.getByRole('button', { name: '移除三萬' })).getByText('和牌張')).toBeTruthy()
+    await saved()
   })
   it('requires the first actual Dora before new Riichi gameplay', async () => {
     await saveSettings({ variant: 'riichi', players: fourPlayers, setup: { ...playing, dice: [1, 1], phase: 'wall-guide', turn: null } })
@@ -108,7 +113,7 @@ describe('RC4 verified win-only Hand Builder', () => {
     expect((await loadSettings()).setup!.phase).toBe('wall-guide')
     expect(screen.getByRole('button', { name: '確認指示牌並開始行牌' })).toHaveProperty('disabled', true)
     fireEvent.click(screen.getByRole('button', { name: '已翻開，輸入指示牌' })); fireEvent.click(screen.getByRole('button', { name: '三萬' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: /這張指示牌已實際翻開/ })); fireEvent.click(screen.getByRole('button', { name: '確認指示牌' })); await saved()
+    fireEvent.click(screen.getByRole('button', { name: '確認指示牌' })); await saved()
     expect(screen.getByText(/實際寶牌（自動計算）：四萬/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '確認指示牌並開始行牌' })); await saved()
     const stored = await loadSettings(); expect(stored.setup!.phase).toBe('playing'); expect(stored.gameplay!.rounds.at(-1)!.dora!.entries).toHaveLength(1)

@@ -4,7 +4,7 @@ import { HONORS, tileInstance } from '../src/features/hands/tiles'
 import { createDraft } from '../src/features/hands/drafts'
 import { createMatch } from '../src/features/match/engine'
 import { defaultHK, defaultRiichi } from '../src/features/match/rules'
-import { emptyConditions } from '../src/features/scoring/models'
+import { emptyConditions, defaultRiichiScoreRules, defaultHKScoreRules } from '../src/features/scoring/models'
 import { syncRoundIndicators, updateIndicator } from '../src/features/scoring/indicators'
 import { newGame } from './handFixtures'
 export function parseTiles(notation: string): TileType[] {
@@ -18,7 +18,7 @@ export function draftFor(notation: string, win: TileType, variant: 'riichi' | 'h
 }
 export const reviewedConditions = () => ({ ...emptyConditions(), reviewed: true, legalWinConfirmed: true, singleWinner: true, noResponsibility: true })
 export function scoringGame(variant: 'riichi' | 'hong-kong' = 'riichi'): GameplayData {
-  let data = newGame(variant); data = { ...data, match: createMatch(data, variant === 'riichi' ? defaultRiichi() : defaultHK(), false) }
+  let data = newGame(variant); data = { ...data, match: createMatch(data, variant === 'riichi' ? { ...defaultRiichi(), scoring: { ...defaultRiichiScoreRules(), doubleYakuman: false, namedDoubleVariants: false } } : { ...defaultHK(), scoring: { ...defaultHKScoreRules(), firstTurn: undefined, humanWin: undefined, baseUnit: undefined } }, true) }
   if (variant === 'riichi') { data = syncRoundIndicators(data); data = updateIndicator(data, 'initial:round-a', 'effective', 'west') }
   return data
 }

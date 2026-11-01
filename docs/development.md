@@ -163,3 +163,19 @@ Pending manual/device QA:
 6. Induce actual quota/read failures and verify warnings, retries and write protection. Different devices/origins still do not synchronize.
 
 See [RC4 review report](release-rc4.md) for final check results and the exact proposed commit text. No commit, push or deployment is performed by this task.
+
+## v1.0.0 實作、儲存及 PWA 驗證
+
+- Gameplay version 3 保護新版流程與首巡語意，避免舊 RC5 client 忽略新增欄位後依舊規則寫回。decode 可讀 v1／v2／v3，僅在記憶中變更 gameplay 版本，舊規則／條件／結果／ID 不重寫；透過原有 queue 在明確操作時寫入 v3。未來 v4+ 拒絕覆寫；IndexedDB 名稱、版本、store、key 和外層 schema 保留。
+- `hands/workflow.ts` 提供新普通流程狀態與條件式首巡選項。舊 WinConditions version 1、舊 reviewed 欄位仍可讀；新草稿加可選 workflow 2 與 exceptional。未知 workflow 拒絕。新增凍結規則欄只用於新牌局，舊快照不填入新預設，保留舊計分及名稱。
+- `WinFlow` 針對每次有意義的選牌、情境、花牌、和牌方式等變更，經 `onUpdate(current => ...)` 合併到最新玩法資料，再走原有 `useSettings` 序列化 IndexedDB 寫入。副露更正與共用指示牌亦即時持久化，重開時同步最新有效副露。不使用延遲計時器或卸載時才儲存，因此沒有因關閉對話框而遺失尚未觸發的防抖寫入。
+- 「已自動儲存」只在交易成功後顯示；排隊中顯示「儲存中…」。失敗保留記憶狀態與原持久記錄，可重試最新草稿；未儲存／錯誤狀態註冊 beforeunload 保護。系統強制終止、忽略離開警告或裝置突然斷電時，只能保證最後已提交的原子交易，不承諾寫入尚未完成的內容。多分頁仍沒有衝突合併。
+- `ResultPanel` 重用 RC4／RC5 特效及原有付款函式，新增計分／四家預覽頁內切換。預覽數字動畫與實際 ledger mutation 分離；降低動態效果直接顯示正確值。
+- 本基線實際沒有 manifest／service worker，正式版新增 `manifest.webmanifest`、原有 192／512 圖示引用與無額外套件的 Vite build plugin `scripts/offlineShell.ts`。它按輸出內容與 public 資產產生版本化 shell cache，預先快取本機圖片、圖示與產物。導航先取網絡，離線回退 index；hash 資產用快取。更新等待舊視窗關閉，不強制重新整理正在輸入的手牌；只清理本專案 shell caches，不清除 IndexedDB、localStorage 或其他來源快取。`_headers` 保持 HTML／SW 重新驗證及 hash 資產長快取。Cloudflare Worker 設定未改。
+- 安裝偵測：iPhone／iPad Safari（包括 Macintosh UA 的觸控 iPadOS）及 Android Chrome；桌面、已安裝 standalone、辨識到的內嵌 WebView 跳過。localStorage key 為 `mahjong-buddy:a2hs-onboarding-seen:v1`，教學實際呈現即寫入，與「知道了」無關。無法讀寫 seen 狀態則跳過，避免阻擋循環；跨瀏覽器／來源無法辨識同一實體裝置。
+- iOS 四張原始截圖直接複製至 `public/install/ios1.png` 至 `ios4.png`，未修改像素；以 CSS 聚焦原有紅圈／箭嘴及實際控制，裁走上方 RC5 版本、無關區域與最後鍵盤。第四階段包含原圖的 Open as Web App 與 Add 兩個動作。Android 三張 SVG 為準確品牌的介面示意，清楚標明非實機截圖，不採用含錯誤網址／多人房間的參考圖。
+- 教學只有一個可見按鈕，保留原生 modal focus、Escape、焦點回復、內部捲動、安全區及固定可見的知道了。圖片均在本來源，成功快取後不需外部圖片請求。
+
+PWA 實作依據：[Service worker lifecycle](https://web.dev/articles/service-worker-lifecycle)（快取版本、等待更新）及 [Chromium Web Apps](https://chromium.googlesource.com/chromium/src.git/+/main/docs/webapps/README.md)（安裝入口可隨平台／版本不同）。不會自動啟動原生安裝提示。
+
+本機隔離 Chrome profile 使用合成資料檢查兩個模式與主題、320／375／390／402／430px 及 1280px 桌面。另以 production preview 驗證教學單一按鈕、native focus／Tab、重載不重現、短畫面 320×480、離線 shell 及 Android 圖片載入。這是本機 Chrome 模擬，並非真機 Safari／Android 或 Cloud Browser；仍須發行人驗收真機、OS 安裝結果與 Cloudflare 部署。完整命令結果見 [正式版待審報告](release-v1.0.0.md)。

@@ -48,7 +48,7 @@ export function calculateFu(shape: Interpretation, method: 'ron' | 'tsumo', menz
   return { fu, breakdown }
 }
 export function scoreRiichi(draft: HandDraft, rules: JapaneseRiichiRules, conditions: WinConditions, riichi: boolean, seatWind: number, roundWind: number): HandValue {
-  const profile = rules.scoring ?? defaultRiichiScoreRules()
+  const profile = rules.scoring ?? { ...defaultRiichiScoreRules(), doubleYakuman: false, namedDoubleVariants: false }
   const types = [...draft.concealed, ...(draft.winningTile ? [draft.winningTile] : [])].map((tile) => tile.type)
   const physical = [...draft.concealed, ...draft.melds.flatMap((meld) => meld.tiles), ...(draft.winningTile ? [draft.winningTile] : [])]
   const indices = physical.map((tile) => tileIndex(tile.type)); const counts = countsOf(physical.map((tile) => tile.type))
@@ -76,8 +76,8 @@ export function scoreRiichi(draft: HandDraft, rules: JapaneseRiichiRules, condit
     const kans = trips.filter((group) => group.type === 'kan').length
     const concealed = concealedTriplets(shape, draft.win.method).length
     const suits = new Set(indices.filter((index) => !honor(index)).map(suitOf)); const hasHonors = indices.some(honor)
-    if (shape.kind === 'orphans') yakuman('國士無雙', counts[win] === 2)
-    if (concealed === 4) yakuman('四暗刻', shape.wait === 'tanki')
+    if (shape.kind === 'orphans') yakuman(profile.namedDoubleVariants && counts[win] === 2 ? '國士無雙十三面待ち' : '國士無雙', counts[win] === 2)
+    if (concealed === 4) yakuman(profile.namedDoubleVariants && shape.wait === 'tanki' ? '四暗刻單騎' : '四暗刻', shape.wait === 'tanki')
     if (dragonTrips === 3) yakuman('大三元')
     if (windTrips === 4) yakuman('大四喜', true)
     else if (windTrips === 3 && shape.pair >= 27 && shape.pair <= 30) yakuman('小四喜')
@@ -89,7 +89,7 @@ export function scoreRiichi(draft: HandDraft, rules: JapaneseRiichiRules, condit
       const offset = [...suits][0] * 9; const base = [3, 1, 1, 1, 1, 1, 1, 1, 3]
       if (base.every((count, index) => counts[offset + index] >= count)) {
         const pure = base.every((count, index) => counts[offset + index] - (win === offset + index ? 1 : 0) === count)
-        yakuman('九蓮寶燈', pure)
+        yakuman(profile.namedDoubleVariants && pure ? '純正九蓮寶燈' : '九蓮寶燈', pure)
       }
     }
     if (conditions.tenhou) yakuman('天和')

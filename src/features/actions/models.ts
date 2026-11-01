@@ -50,8 +50,11 @@ export interface GameplayData {
   wins?: LockedWin[]
   winReversals?: { version: 1; id: string; winId: string; reason: string; timestamp: number }[]
   match?: MatchState; pastMatches?: MatchState[]
-  version: 1 | 2; activeRoundId: string | null; rounds: RoundContext[]; actions: PlayerAction[]; drafts: HandDraft[]
+  version: 1 | 2 | 3; activeRoundId: string | null; rounds: RoundContext[]; actions: PlayerAction[]; drafts: HandDraft[]
 }
 export const ACTION_LABELS: Record<MeldKind | 'riichi', string> = { chi: '上牌／吃', pon: '碰', ankan: '暗槓', daiminkan: '大明槓', shouminkan: '加槓', riichi: '立直' }
+export function actionLabel(kind: MeldKind | 'riichi', variant: MahjongVariant): string {
+  return kind === 'chi' ? variant === 'hong-kong' ? '上牌' : '吃' : kind === 'daiminkan' && variant === 'hong-kong' ? '明槓' : ACTION_LABELS[kind]
+}
 // Metadata only. Three-player play is deliberately not implemented.
 export const FUTURE_SANMA_ACTION = { kind: 'nuki-kita', label: '拔北 / Nuki Kita', available: false } as const

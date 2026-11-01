@@ -5,7 +5,7 @@ import { POSITIONS } from '../../types/mahjong'
 import type { PlayerPosition } from '../../types/mahjong'
 import type { Settings } from '../../storage/settings'
 import { assignSeatWinds } from '../game/rules'
-import { calculateNotenPayments, finalizeDraw, markFourKan, prepareNext, previewDraw, reconcileLegacy, roundLabel, undoLatestDraw } from './engine'
+import { completeLegacyHKUnit, calculateNotenPayments, finalizeDraw, markFourKan, prepareNext, previewDraw, reconcileLegacy, roundLabel, undoLatestDraw } from './engine'
 import type { Points, Tenpai } from './models'
 export type MatchView = 'draw' | 'four-kan' | 'summary'
 interface Props { settings: Settings; view: MatchView; onUpdate: (update: (s: Settings) => Settings) => void; onClose: () => void; onRules: () => void; onWin: (seat: PlayerPosition) => void; onIndicators: () => void; onViewWin: (id: string) => void }
@@ -20,6 +20,7 @@ export function MatchFlow({ settings, view, onUpdate, onClose, onRules, onWin, o
   const [error, setError] = useState('')
   const [baseline, setBaseline] = useState<Partial<Points>>({})
   const [pool, setPool] = useState('')
+  const [hkUnit, setHkUnit] = useState('1')
   const [clearWin, setClearWin] = useState(false)
   const winds = assignSeatWinds(match.dealer)
   const type = view === 'four-kan' ? 'four-kan-abortive-draw' : 'exhaustive-draw'
@@ -37,6 +38,7 @@ export function MatchFlow({ settings, view, onUpdate, onClose, onRules, onWin, o
       {<ul className="balance-list">{POSITIONS.map((seat) => <li key={seat}>{name(seat)}：{match.points[seat].toLocaleString()} 點</li>)}</ul>}
       {match.winPending && !data.wins?.some((win) => win.roundId === match.roundId && win.status === 'locked') && <div><p role="status">和牌待處理：請從贏家的和牌流程完成核對、鎖定及結算，不能以流局覆蓋。</p><label className="check-line"><input type="checkbox" checked={clearWin} onChange={(e) => setClearWin(e.target.checked)} />經核對，先前和牌標記有誤，本局繼續；草稿仍保留</label><button type="button" disabled={!clearWin} onClick={() => run((s) => ({ ...s, gameplay: { ...s.gameplay!, match: { ...s.gameplay!.match!, winPending: false, pendingFourKan: s.gameplay!.match!.pendingFourKan ? { ...s.gameplay!.match!.pendingFourKan!, status: 'deferred' } : undefined } } }))}>更正和牌標記</button></div>}
       {data.wins?.filter((win) => win.roundId === match.roundId && win.status === 'locked').map((win) => <button className="primary-button action-wide" type="button" key={win.id} onClick={() => { onViewWin(win.id); onClose() }}>查看鎖定和牌及結算</button>)}
+      {match.rules.variant === 'hong-kong' && match.rules.payment !== 'custom' && match.rules.scoring?.baseUnit === undefined && <section><p>舊局缺少付款底額，明確補設只影響未結算手牌，歷史付款保留。</p><label>零番一份基本金額<input aria-label="補設港式底額" type="number" min="1" step="1" value={hkUnit} onChange={(event) => setHkUnit(event.target.value)} /></label><button type="button" onClick={() => run((current) => completeLegacyHKUnit(current, Number(hkUnit)))}>確認補設底額</button></section>}
       <button className="secondary-button action-wide" type="button" onClick={onRules}>查看本局規則</button>
       {match.variant === 'riichi' && <button className="secondary-button action-wide" type="button" onClick={onIndicators}>查看／更正本局寶牌指示牌</button>}
       {latestOutcome?.type === 'win' && latestOutcome.winId && <details><summary>審計撤銷最近和牌結算</summary><p>只在下一局尚無動作／草稿時可撤銷。原快照保留，並記錄撤銷原因。</p><label className="action-field">撤銷原因<input aria-label="和牌撤銷原因" value={reversalReason} onChange={(event) => setReversalReason(event.target.value)} /></label><label className="check-line"><input type="checkbox" checked={reverseConfirmed} onChange={(event) => setReverseConfirmed(event.target.checked)} />四位玩家確認撤銷已結算和牌並恢復結算前帳目</label><button type="button" className="secondary-button action-wide" disabled={!reverseConfirmed || reversalReason.trim().length < 3} onClick={() => run((current) => reverseWinningSettlement(current, latestOutcome.winId!, reversalReason, reverseConfirmed))}>確認審計撤銷</button></details>}

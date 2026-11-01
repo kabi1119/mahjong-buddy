@@ -7,7 +7,7 @@ import { scoreHongKong } from '../src/features/scoring/hongKong'
 import type { HandDraft } from '../src/features/actions/models'
 import type { TileType } from '../src/features/hands/tiles'
 import { draftFor, reviewedConditions } from './scoringFixtures'
-const rules = defaultRiichi(); const conditions = reviewedConditions()
+const rules = { ...defaultRiichi(), scoring: { ...defaultRiichiScoreRules(), doubleYakuman: false, namedDoubleVariants: false } }; const conditions = reviewedConditions()
 function expose(draft: HandDraft, kind: 'chi' | 'pon' | 'ankan' | 'daiminkan', tile: TileType) {
   const meld = makeMeld(kind, tile, draft.winner, draft.roundId, draft.variant, crypto.randomUUID(), 'bottom')
   for (const type of meld.tiles.slice(0, 3).map((item) => item.type)) {

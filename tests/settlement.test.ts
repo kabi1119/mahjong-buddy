@@ -107,7 +107,7 @@ describe('locked scoring and safe settlement', () => {
     const old = { ...settings, gameplay: { ...action, version: 1 as const } }
     await saveSettings(old)
     const restored = await loadSettings()
-    expect(restored.gameplay!.version).toBe(2)
+    expect(restored.gameplay!.version).toBe(3)
     expect(restored.gameplay!.activeRoundId).toBe(old.gameplay.activeRoundId)
     expect(restored.gameplay!.actions).toEqual(old.gameplay.actions)
     expect(restored.players).toEqual(old.players)

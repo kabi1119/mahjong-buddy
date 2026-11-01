@@ -1,4 +1,4 @@
-# 動作記錄與 Win-triggered Hand Builder · v1.0.0rc4
+# 動作記錄與 Win-triggered Hand Builder · v1.0.0
 
 ## 使用原則
 
@@ -63,7 +63,7 @@ Riichi 的槓、門前清與指示牌邊界參考 [WRC Rules 2025](https://www.w
 5. 立直模式核對吃牌來源、立直確認與座位 badge；明碰後不能確認立直，撤回立直退回其一次供託扣點。
 6. 食糊／和牌才開重建：確認贏家、自摸／港式出銃或日本榮和及來源、贏牌牌張。加入暗牌、各類副露、花牌／赤五，測試第五張及重複花牌被拒絕。
 7. 輸入實際三萬指示牌應顯示四萬，九筒應顯示一筒；非立直贏家不顯示裏寶牌新增按鈕。被搶槓不可新增相應槓寶牌。
-8. 儲存未完成草稿，重新整理並從相同贏家的食糊／和牌選單續填；取消未儲存修改須確認，舊草稿不應消失。重設／切換模式再回來，舊局草稿仍在。
+8. 選牌時自動儲存，等待成功狀態後重新整理並從相同贏家的食糊／和牌選單續填；關閉視窗不丟棄記憶中的草稿。重設／切換模式再回來，舊局草稿仍在。
 9. 完成最後手牌預覽並鎖定：核對真實計分但未付款；再確認正式結算，只支付一次，封存舊局並準備新局。
 10. 在 320、375、390、402、430px、iPhone Safari／獨立顯示及桌面測試各對話框的捲動、鍵盤焦點、Escape、取消和焦點回復。桌面應維持 590px 及有空間時垂直置中。
 
@@ -78,3 +78,5 @@ RC4 uses winner/method → simplified selected-hand/catalog builder → verified
 Recorded current-round melds are imported automatically. The missing-meld panel edits the authoritative action history, preserving existing Pon/Added-Kan relationships and keeping correction/undo records. Japanese Menzen is derived, with Ankan still closed. Unknown red composition must be explicitly completed. The final meld IDs/types/sources/physical identities must match projected actions before lock.
 
 Visible Dora now belongs to the round; private legacy draft inputs remain retained for review. Confirmed Riichi alone enables Ura input. A complete reliable hand first opens a review popup; only the second confirmation locks it irreversibly in the ordinary workflow. Lock is not payment. The results page requires a separate settlement confirmation, then archives the round and offers next-hand preparation. Saved drafts/opening the Win Flow never apply points. See [RC4 rules](rules.md#rc4-verified-scoring-profile) for precise profile choices and [development notes](development.md#rc4-scoring-implementation-and-migration) for schema version 2 and audited reversal.
+
+正式版以兩次按鈕確認手牌及鎖定，不要求五項勾選，只有可選例外欄。首巡與其他支援情境使用選單。手牌計分與四家預覽分開；只有最後結算按鈕付款。詳細新舊規則及儲存邊界見 rules.md、development.md 的 v1.0.0 章節；上文 RC4 段落保留為歷史設計說明。

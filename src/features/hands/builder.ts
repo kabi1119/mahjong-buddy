@@ -49,7 +49,7 @@ export function saveRecordedMeld(data: GameplayData, player: PlayerPosition, kin
     next = recordAction(next, player, { kind: 'pon', tile, meldId, sourcePlayer, kanStatus: 'completed', riichiAnkanConfirmed: false })
     next = recordAction(next, player, { kind: 'shouminkan', tile, meldId, targetMeldId: meldId, physicalConfirmed: true, kanStatus: 'completed' })
   } else {
-    const input: ActionInput = { kind, tile, meldId, sourcePlayer, kanStatus: 'completed', riichiAnkanConfirmed: kind === 'ankan', ...(kind === 'chi' ? { claimedTile: undefined, suppliedTiles: undefined, chiRedIndex: undefined, physicalConfirmed: undefined } : {}) }
+    const input: ActionInput = { kind, tile, meldId, sourcePlayer, redCount: undefined, kanStatus: 'completed', riichiAnkanConfirmed: kind === 'ankan', ...(kind === 'chi' ? { claimedTile: undefined, suppliedTiles: undefined, chiRedIndex: undefined, physicalConfirmed: undefined } : {}) }
     next = sameKind ? correctAction(next, old!.actionId, input) : recordAction(next, player, input)
   }
   return syncRoundIndicators(syncMatch(next))

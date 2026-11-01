@@ -7,7 +7,7 @@ const object = (value: unknown): value is Record<string, unknown> => !!value && 
 const integer = (value: unknown) => Number.isSafeInteger(value)
 const tile = (value: unknown) => object(value) && typeof value.id === 'string' && !!value.id && isTileType(value.type) && typeof value.red === 'boolean' && (!value.red || /^5[mps]$/.test(value.type))
 export function validConditions(value: unknown): value is WinConditions {
-  if (!object(value) || value.version !== 1) return false
+  if (!object(value) || value.version !== 1 || (value.workflow !== undefined && value.workflow !== 2) || (value.exceptional !== undefined && typeof value.exceptional !== 'boolean') || (value.workflow === 2 && typeof value.exceptional !== 'boolean')) return false
   const keys = ['reviewed', 'legalWinConfirmed', 'singleWinner', 'noResponsibility', 'doubleRiichi', 'ippatsu', 'rinshan', 'chankan', 'haitei', 'houtei', 'tenhou', 'chiihou', 'hkHeaven', 'hkEarth', 'hkHuman', 'consecutiveKan']
   return keys.every((key) => typeof value[key] === 'boolean') && (value.hkBaseUnit === undefined || (integer(value.hkBaseUnit) && Number(value.hkBaseUnit) > 0))
 }

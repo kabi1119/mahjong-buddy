@@ -23,10 +23,10 @@ export function validateRules(rules: MatchRules): string[] {
     if (score.version !== 1) return ['未知計分設定版本。']
     if (rules.variant === 'hong-kong') {
       const hk = rules.scoring as HKScoreRules
-      if (![8, 10, 'cap'].includes(hk.kankan) || typeof hk.sevenPairs !== 'boolean' || (hk.baseUnit !== undefined && (!Number.isSafeInteger(hk.baseUnit) || hk.baseUnit <= 0)) || ![hk.ronMultiplier, hk.tsumoMultiplier].every((amount) => Number.isSafeInteger(amount) && amount > 0)) return ['港式計分設定無效。']
+      if ((hk.firstTurn !== undefined && hk.firstTurn !== 'v1') || (hk.humanWin !== undefined && typeof hk.humanWin !== 'boolean') || ![8, 10, 'cap'].includes(hk.kankan) || typeof hk.sevenPairs !== 'boolean' || (hk.baseUnit !== undefined && (!Number.isSafeInteger(hk.baseUnit) || hk.baseUnit <= 0)) || ![hk.ronMultiplier, hk.tsumoMultiplier].every((amount) => Number.isSafeInteger(amount) && amount > 0)) return ['港式計分設定無效。']
     } else {
       const jp = rules.scoring as RiichiScoreRules
-      if (![jp.kiriage, jp.doubleYakuman, jp.stackYakuman, jp.openTanyao].every((flag) => typeof flag === 'boolean') || !['yakuman', 'sanbaiman', 'uncapped'].includes(jp.kazoe) || ![2, 4].includes(jp.doubleWindPair) || !['immediate', 'ankan-immediate-open-after-discard'].includes(jp.kanReveal)) return ['日本計分設定無效。']
+      if ((jp.namedDoubleVariants !== undefined && typeof jp.namedDoubleVariants !== 'boolean') || ![jp.kiriage, jp.doubleYakuman, jp.stackYakuman, jp.openTanyao].every((flag) => typeof flag === 'boolean') || !['yakuman', 'sanbaiman', 'uncapped'].includes(jp.kazoe) || ![2, 4].includes(jp.doubleWindPair) || !['immediate', 'ankan-immediate-open-after-discard'].includes(jp.kanReveal)) return ['日本計分設定無效。']
     }
   }
   if (rules.variant === 'hong-kong') {

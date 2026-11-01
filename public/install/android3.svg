@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 470"><title>Android Chrome 安裝示意，第 3 步</title><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0 6 3 0 6" fill="#d62027"/></marker></defs><rect width="400" height="470" rx="22" fill="#f7f4e8"/><rect x="8" y="8" width="384" height="66" rx="18" fill="#e4e8e5"/><text x="22" y="30" font-size="11" fill="#244f3f">Chrome · 安裝流程示意（非實機截圖）</text><text x="22" y="54" font-size="13" fill="#213c32">app.mahjong-buddy.workers.dev</text><text x="366" y="55" font-size="30">⋮</text><g transform="translate(28 100) scale(1.1)"><title id="title">麻雀小夥伴・一索小鳥</title><rect x="3" y="3" width="58" height="58" rx="13" fill="#e7e8d5"/><rect x="3" y="1" width="58" height="56" rx="13" fill="#fbf8e9" stroke="#c5d5bb" stroke-width="1.5"/>
+<path d="M21 49h25M30 46v5m8-7 2 7" fill="none" stroke="#285a43" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M14 42c5-2 9-7 10-14 1-10 9-15 17-11 4 2 6 6 5 11-1 8-7 17-17 18-5 0-10-1-15-4Z" fill="#35785a"/>
+<path d="M23 35c5-6 10-9 17-8-2 9-7 15-15 15" fill="#86b798"/>
+<path d="M17 42 9 48l17-5" fill="#214d3b"/>
+<path d="m45 22 9 3-9 4" fill="#bc9858"/>
+<path d="M32 18c3-2 7-2 10 0l-2 3-9 1" fill="#244c3a"/>
+<circle cx="41" cy="23" r="2" fill="#fff8dc"/><circle cx="41.5" cy="23" r=".9" fill="#18382c"/>
+<path d="m28 32 6-3m-6 9 7-5" stroke="#f4efcf" stroke-width="1.6" stroke-linecap="round"/>
+</g><text x="112" y="126" font-size="23" fill="#244f3f" font-weight="700">麻雀小夥伴</text><text x="112" y="152" font-size="16" fill="#244f3f">MAHJONG BUDDY</text><rect x="28" y="192" width="344" height="220" rx="24" fill="#245540"/><text x="200" y="232" text-anchor="middle" fill="#f5efd9" font-size="18">實體麻雀牌桌助手</text><rect x="104" y="260" width="192" height="108" rx="16" fill="#356b54"/><text x="200" y="303" text-anchor="middle" fill="#f5efd9" font-size="19">東圈東局</text><text x="200" y="337" text-anchor="middle" fill="#f5efd9" font-size="15">牌友 · 記錄 · 計分</text><rect x="20" y="174" width="360" height="226" rx="20" fill="white" stroke="#c7cec8"/><text x="40" y="211" font-size="23" font-weight="700">安裝應用程式？</text><g transform="translate(40 234) scale(.8)"><title id="title">麻雀小夥伴・一索小鳥</title><rect x="3" y="3" width="58" height="58" rx="13" fill="#e7e8d5"/><rect x="3" y="1" width="58" height="56" rx="13" fill="#fbf8e9" stroke="#c5d5bb" stroke-width="1.5"/>
+<path d="M21 49h25M30 46v5m8-7 2 7" fill="none" stroke="#285a43" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M14 42c5-2 9-7 10-14 1-10 9-15 17-11 4 2 6 6 5 11-1 8-7 17-17 18-5 0-10-1-15-4Z" fill="#35785a"/>
+<path d="M23 35c5-6 10-9 17-8-2 9-7 15-15 15" fill="#86b798"/>
+<path d="M17 42 9 48l17-5" fill="#214d3b"/>
+<path d="m45 22 9 3-9 4" fill="#bc9858"/>
+<path d="M32 18c3-2 7-2 10 0l-2 3-9 1" fill="#244c3a"/>
+<circle cx="41" cy="23" r="2" fill="#fff8dc"/><circle cx="41.5" cy="23" r=".9" fill="#18382c"/>
+<path d="m28 32 6-3m-6 9 7-5" stroke="#f4efcf" stroke-width="1.6" stroke-linecap="round"/>
+</g><text x="108" y="259" font-size="21" font-weight="700">Mahjong Buddy</text><text x="108" y="284" font-size="11">app.mahjong-buddy.workers.dev</text><text x="167" y="357" font-size="20" fill="#2767ce">取消</text><rect x="248" y="322" width="108" height="54" rx="12" fill="#2767ce"/><text x="302" y="357" text-anchor="middle" font-size="22" fill="white">安裝</text><ellipse cx="302" cy="349" rx="66" ry="40" fill="none" stroke="#d62027" stroke-width="5"/><path d="M200 431 265 385" stroke="#d62027" stroke-width="5" marker-end="url(#arrow)"/><text x="25" y="451" font-size="17" fill="#b61720" font-weight="700">STEP 3</text></svg>

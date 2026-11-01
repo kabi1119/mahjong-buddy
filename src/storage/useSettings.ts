@@ -36,6 +36,13 @@ export function useSettings() {
     return () => { cancelled = true; mounted.current = false }
   }, [])
 
+  useEffect(() => {
+    if (status !== 'saving' && status !== 'error') return
+    const protectPending = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', protectPending)
+    return () => window.removeEventListener('beforeunload', protectPending)
+  }, [status])
+
   function updateSettings(update: (previous: Settings) => Settings) {
     if (!ready.current) return
     let next = update(current.current)

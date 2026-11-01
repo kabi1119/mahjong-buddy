@@ -31,13 +31,13 @@ export function isHandDraft(draft: unknown): boolean {
 export function decodeGameplay(value: unknown): GameplayData | undefined {
   if (value === undefined) return undefined
   // Fail closed instead of dropping unread win drafts or a future schema on the next save.
-  if (!object(value) || (value.version !== 1 && value.version !== 2) || !nullableId(value.activeRoundId)) throw new Error('無法讀取動作／食糊草稿資料版本。')
+  if (!object(value) || (value.version !== 1 && value.version !== 2 && value.version !== 3) || !nullableId(value.activeRoundId)) throw new Error('無法讀取動作／食糊草稿資料版本。')
   const roundsValid = list(value.rounds, (round) => object(round) && text(round.id) && ['hong-kong', 'riichi'].includes(String(round.variant)) && position(round.dealer) && integer(round.createdAt) && ['active', 'archived'].includes(String(round.status)) && object(round.players) && POSITIONS.every((seat) => { const p = (round.players as Record<string, unknown>)[seat]; return object(p) && p.position === seat && text(p.nickname) && text(p.avatar) }))
   const draftsValid = list(value.drafts, isHandDraft)
   if (!roundsValid || !draftsValid || !list(value.actions, action)) throw new Error('動作／草稿資料損壞；保留原始資料，不覆寫。')
   const data = structuredClone(value) as unknown as GameplayData
-  // Migrate version 1 only in memory; the queue writes after an explicit change.
-  data.version = 2
+  // Preserve v1/v2 snapshots; v3 prevents RC5 from applying obsolete workflow/first-turn semantics.
+  data.version = 3
   const roundIds = new Set(data.rounds.map((round) => round.id))
   if (roundIds.size !== data.rounds.length || (data.activeRoundId && !roundIds.has(data.activeRoundId)) || data.actions.some((item) => !roundIds.has(item.roundId)) || data.drafts.some((item) => !roundIds.has(item.roundId)) || new Set(data.actions.map((item) => item.id)).size !== data.actions.length || new Set(data.drafts.map((item) => item.id)).size !== data.drafts.length) throw new Error('動作／草稿參照資料無效。')
   data.match = decodeMatch(data.match, roundIds)

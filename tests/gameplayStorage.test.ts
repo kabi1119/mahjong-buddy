@@ -50,7 +50,7 @@ describe('version-1 records with optional versioned gameplay', () => {
   })
   it('protects future or corrupted gameplay payloads instead of silently dropping drafts', () => {
     const legacy = { schemaVersion: 1, variant: 'hong-kong', players: fourPlayers }
-    expect(() => decodeSettings({ ...legacy, gameplay: { ...newGame(), version: 3 } })).toThrow()
+    expect(() => decodeSettings({ ...legacy, gameplay: { ...newGame(), version: 4 } })).toThrow()
     expect(() => decodeSettings({ ...legacy, gameplay: { ...newGame(), drafts: [{ bad: true }] } })).toThrow()
     expect(() => decodeSettings({ ...legacy, gameplay: { ...ponGame(), actions: [{ bad: true }] } })).toThrow()
     expect(decodeSettings(legacy).gameplay).toBeUndefined()

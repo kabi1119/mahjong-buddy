@@ -17,7 +17,7 @@ import { DATABASE_NAME, decodeSettings, loadSettings, saveSettings } from '../sr
 import type { Settings } from '../src/storage/settings'
 import { draftFor, reviewedConditions, scoringGame } from './scoringFixtures'
 import { call, fourPlayers } from './handFixtures'
-const profile = defaultRiichiScoreRules()
+const profile = { ...defaultRiichiScoreRules(), doubleYakuman: false, namedDoubleVariants: false }
 const uncapped = { ...profile, kazoe: 'uncapped' as const }
 const conditions = reviewedConditions()
 function countedHand() {

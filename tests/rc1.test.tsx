@@ -97,7 +97,7 @@ describe('RC1 round interactions', () => {
     expect(screen.getByRole('dialog', { name: '牌局摘要與記錄' })).toBeTruthy()
     const drawn = await loadSettings(); expect(drawn.gameplay?.match).toMatchObject({ honba: 1, kyoku: 2, dealer: 'right', points: { top: 28000, bottom: 24000 } })
     app.unmount(); render(<App />); await saved()
-    fireEvent.click(screen.getByRole('button', { name: '查看本局結果及準備下一局' }))
+    fireEvent.click(screen.getByRole('button', { name: '查看上一局結果' }))
     fireEvent.click(screen.getByRole('button', { name: '撤回最近流局' })); await saved()
     expect((await loadSettings()).gameplay?.match).toMatchObject({ honba: 0, dealer: 'bottom', points: { top: 25000, bottom: 25000 } })
   })
