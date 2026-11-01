@@ -1,3 +1,4 @@
+import { syncRoundIndicators, updateIndicator } from '../src/features/scoring/indicators'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IDBFactory } from 'fake-indexeddb'
@@ -96,14 +97,14 @@ describe('RC1 round interactions', () => {
     expect(screen.getByRole('dialog', { name: '牌局摘要與記錄' })).toBeTruthy()
     const drawn = await loadSettings(); expect(drawn.gameplay?.match).toMatchObject({ honba: 1, kyoku: 2, dealer: 'right', points: { top: 28000, bottom: 24000 } })
     app.unmount(); render(<App />); await saved()
-    fireEvent.click(screen.getByRole('button', { name: '查看流局結果及準備下一局' }))
+    fireEvent.click(screen.getByRole('button', { name: '查看本局結果及準備下一局' }))
     fireEvent.click(screen.getByRole('button', { name: '撤回最近流局' })); await saved()
     expect((await loadSettings()).gameplay?.match).toMatchObject({ honba: 0, dealer: 'bottom', points: { top: 25000, bottom: 25000 } })
   })
   it('keeps four-Kan timing pending across reload and blocks a win override', async () => {
     const settings = matchSettings(); let data = settings.gameplay!
     for (let index = 0; index < 4; index++) data = recordAction(data, index < 2 ? 'bottom' : 'right', call(index === 3 ? 'daiminkan' : 'ankan', (['1m', '2m', '3m', '4m'] as const)[index], 'kan-' + index))
-    settings.gameplay = syncMatch(data); await saveSettings(settings)
+    data = syncRoundIndicators(syncMatch(data)); data = updateIndicator(data, 'initial:round-a', 'effective', 'west'); for (const entry of data.rounds[0].dora!.entries.filter((item) => item.kind === 'kan')) data = updateIndicator(data, entry.id, 'unrevealed'); settings.gameplay = data; await saveSettings(settings)
     const app = render(<App />); await saved()
     expect(screen.getByRole('dialog', { name: '偵測到四槓散了條件' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '確認四槓散了' })).toHaveProperty('disabled', true)

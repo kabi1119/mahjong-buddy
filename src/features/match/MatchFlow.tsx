@@ -1,3 +1,4 @@
+import { reverseWinningSettlement } from '../scoring/settlement'
 import { useState } from 'react'
 import { Sheet } from '../../components/Sheet'
 import { POSITIONS } from '../../types/mahjong'
@@ -7,9 +8,12 @@ import { assignSeatWinds } from '../game/rules'
 import { calculateNotenPayments, finalizeDraw, markFourKan, prepareNext, previewDraw, reconcileLegacy, roundLabel, undoLatestDraw } from './engine'
 import type { Points, Tenpai } from './models'
 export type MatchView = 'draw' | 'four-kan' | 'summary'
-interface Props { settings: Settings; view: MatchView; onUpdate: (update: (s: Settings) => Settings) => void; onClose: () => void; onRules: () => void; onWin: (seat: PlayerPosition) => void }
-export function MatchFlow({ settings, view, onUpdate, onClose, onRules, onWin }: Props) {
+interface Props { settings: Settings; view: MatchView; onUpdate: (update: (s: Settings) => Settings) => void; onClose: () => void; onRules: () => void; onWin: (seat: PlayerPosition) => void; onIndicators: () => void; onViewWin: (id: string) => void }
+export function MatchFlow({ settings, view, onUpdate, onClose, onRules, onWin, onIndicators, onViewWin }: Props) {
   const data = settings.gameplay!; const match = data.match!
+  const [reversalReason, setReversalReason] = useState('')
+  const [reverseConfirmed, setReverseConfirmed] = useState(false)
+  const latestOutcome = match.history.filter((item) => !item.undone).at(-1)
   const [tenpai, setTenpai] = useState<Partial<Tenpai>>({})
   const [confirmed, setConfirmed] = useState(false)
   const [winner, setWinner] = useState(false)
@@ -30,11 +34,15 @@ export function MatchFlow({ settings, view, onUpdate, onClose, onRules, onWin }:
     <p>{roundLabel(match)} · 莊家：{name(match.dealer)}{match.variant === 'riichi' && <> · {match.honba} 本場 · 供託 {match.pool.toLocaleString()} 點</>}</p>
     {match.legacyUnreconciled ? <section className="legacy-baseline"><h3>舊立直局尚未對帳</h3><p>舊版立直從未扣點。請按實體牌桌填寫目前四人實際點數及已包含舊立直棒的供託；不會再次扣除舊棒。</p>{POSITIONS.map((seat) => <label className="action-field" key={seat}>{name(seat)}<input type="number" min="0" aria-label={name(seat) + '實際點數'} value={baseline[seat] ?? ''} onChange={(e) => setBaseline({ ...baseline, [seat]: e.target.value === '' ? undefined : Number(e.target.value) })} /></label>)}<label className="action-field">實際供託<input type="number" min="0" step="1000" aria-label="實際供託" value={pool} onChange={(e) => setPool(e.target.value)} /></label><label className="check-line"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />確認以上是目前實際數值</label><button type="button" className="primary-button" disabled={!confirmed || pool === '' || !POSITIONS.every((seat) => baseline[seat] !== undefined)} onClick={() => run((s) => ({ ...s, gameplay: reconcileLegacy(s.gameplay!, baseline as Points, Number(pool)) }))}>確認對帳基準</button></section>
     : summary ? <>
-      {match.variant === 'riichi' && <ul className="balance-list">{POSITIONS.map((seat) => <li key={seat}>{name(seat)}：{match.points[seat].toLocaleString()} 點</li>)}</ul>}
-      {match.winPending && <div><p role="status">和牌待處理：尚未支援和牌計分及正式結算，不能以流局覆蓋。可保留記錄後重設開局。</p><label className="check-line"><input type="checkbox" checked={clearWin} onChange={(e) => setClearWin(e.target.checked)} />經核對，先前和牌標記有誤，本局繼續；草稿仍保留</label><button type="button" disabled={!clearWin} onClick={() => run((s) => ({ ...s, gameplay: { ...s.gameplay!, match: { ...s.gameplay!.match!, winPending: false, pendingFourKan: s.gameplay!.match!.pendingFourKan ? { ...s.gameplay!.match!.pendingFourKan!, status: 'deferred' } : undefined } } }))}>更正和牌標記</button></div>}
+      {<ul className="balance-list">{POSITIONS.map((seat) => <li key={seat}>{name(seat)}：{match.points[seat].toLocaleString()} 點</li>)}</ul>}
+      {match.winPending && !data.wins?.some((win) => win.roundId === match.roundId && win.status === 'locked') && <div><p role="status">和牌待處理：請從贏家的和牌流程完成核對、鎖定及結算，不能以流局覆蓋。</p><label className="check-line"><input type="checkbox" checked={clearWin} onChange={(e) => setClearWin(e.target.checked)} />經核對，先前和牌標記有誤，本局繼續；草稿仍保留</label><button type="button" disabled={!clearWin} onClick={() => run((s) => ({ ...s, gameplay: { ...s.gameplay!, match: { ...s.gameplay!.match!, winPending: false, pendingFourKan: s.gameplay!.match!.pendingFourKan ? { ...s.gameplay!.match!.pendingFourKan!, status: 'deferred' } : undefined } } }))}>更正和牌標記</button></div>}
+      {data.wins?.filter((win) => win.roundId === match.roundId && win.status === 'locked').map((win) => <button className="primary-button action-wide" type="button" key={win.id} onClick={() => { onViewWin(win.id); onClose() }}>查看鎖定和牌及結算</button>)}
       <button className="secondary-button action-wide" type="button" onClick={onRules}>查看本局規則</button>
-      <h3>流局記錄</h3><ul className="round-history">{match.history.map((item) => <li key={item.id}>{roundLabel({ ...match, ...item.before })} · {item.type === 'four-kan-abortive-draw' ? '四槓散了（途中流局）' : '流局'}{item.undone ? ' · 已撤回' : ''}<div>{POSITIONS.map((seat) => <span key={seat}>{name(seat)} {item.deltas[seat] >= 0 ? '+' : ''}{item.deltas[seat]} </span>)}</div></li>)}</ul>
-      {match.history.some((item) => !item.undone) && <button className="secondary-button action-wide" type="button" onClick={() => run(undoLatestDraw)}>撤回最近流局</button>}
+      {match.variant === 'riichi' && <button className="secondary-button action-wide" type="button" onClick={onIndicators}>查看／更正本局寶牌指示牌</button>}
+      {latestOutcome?.type === 'win' && latestOutcome.winId && <details><summary>審計撤銷最近和牌結算</summary><p>只在下一局尚無動作／草稿時可撤銷。原快照保留，並記錄撤銷原因。</p><label className="action-field">撤銷原因<input aria-label="和牌撤銷原因" value={reversalReason} onChange={(event) => setReversalReason(event.target.value)} /></label><label className="check-line"><input type="checkbox" checked={reverseConfirmed} onChange={(event) => setReverseConfirmed(event.target.checked)} />四位玩家確認撤銷已結算和牌並恢復結算前帳目</label><button type="button" className="secondary-button action-wide" disabled={!reverseConfirmed || reversalReason.trim().length < 3} onClick={() => run((current) => reverseWinningSettlement(current, latestOutcome.winId!, reversalReason, reverseConfirmed))}>確認審計撤銷</button></details>}
+      {data.wins?.some((win) => win.roundId !== match.roundId) && <details><summary>已封存和牌快照</summary>{data.wins.filter((win) => win.roundId !== match.roundId && win.rules.variant === match.variant).map((win) => <button className="secondary-button action-wide" type="button" key={win.id} onClick={() => { onViewWin(win.id); onClose() }}>{win.score.label} · {win.status === 'locked' ? '已封存，未支付' : win.status === 'reversed' ? '已審計撤銷' : '已結算'}</button>)}</details>}
+      <h3>牌局結果記錄</h3><ul className="round-history">{match.history.map((item) => <li key={item.id}>{roundLabel({ ...match, ...item.before })} · {item.type === 'win' ? '和牌結算' : item.type === 'four-kan-abortive-draw' ? '四槓散了（途中流局）' : '流局'}{item.undone ? ' · 已撤回' : ''}{item.winId && <button className="text-action" type="button" onClick={() => { onViewWin(item.winId!); onClose() }}>查看和牌結果</button>}<div>{POSITIONS.map((seat) => <span key={seat}>{name(seat)} {item.deltas[seat] >= 0 ? '+' : ''}{item.deltas[seat]} </span>)}</div></li>)}</ul>
+      {latestOutcome && latestOutcome.type !== 'win' && <button className="secondary-button action-wide" type="button" onClick={() => run(undoLatestDraw)}>撤回最近流局</button>}
       {['between', 'end-decision'].includes(match.phase) && <>{match.phase === 'end-decision' && <p role="status">已到原定最後一局。請明確選擇結束或延長牌局。</p>}<button className="primary-button action-wide" type="button" onClick={() => run((s) => prepareNext(s, 'continue'))}>{match.phase === 'end-decision' ? '延長牌局並準備下一局' : '準備下一局'}</button>{match.phase === 'end-decision' && <button className="secondary-button action-wide" type="button" onClick={() => run((s) => prepareNext(s, 'end'))}>結束牌局</button>}</>}
       {match.phase === 'ended' && <p>牌局已結束。重設開局可開始新牌局；舊記錄保留。</p>}
     </> : <>

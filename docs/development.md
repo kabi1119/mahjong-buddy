@@ -39,7 +39,7 @@ npm run preview
 
 Switching modes preserves player seats and resets setup. Physical seat labels describe screen positions; Mahjong winds are assigned relative to the selected dealer. Cancelled editor drafts are never saved.
 
-Win-triggered hand reconstruction and manual call recording are implemented. No win scoring, complete winning-hand validation, tile simulation, automatic physical-action detection, win-driven dealer rotation or win settlement, authentication, backend, or PWA caching is included. See [rules and chosen variations](rules.md) for verified references, coordinate conventions and limitations.
+Win-triggered hand reconstruction and manual call recording are implemented. RC4 adds automatic supported HK/Riichi scoring, explicit single-winner settlement, immutable locked snapshots and win-driven dealer progression. It does not simulate physical tiles, detect discards/claims, verify Furiten from an unrecorded discard history, provide accounts/backend storage, or implement PWA caching. See [rules and chosen variations](rules.md) for verified references, coordinate conventions and limitations.
 
 ## Local storage
 
@@ -105,7 +105,7 @@ Tests emulate IndexedDB and dialog opening in jsdom. They do not verify native d
 
 ## v0.2.0b interface notes
 
-The RC1 display version is v1.0.0rc1 and the valid npm SemVer is 1.0.0-rc.1. The compact mobile and centered desktop layout from v0.2.0b/c is preserved. Database/store/key and record schemaVersion remain unchanged. New gameplay data is an additive, independently versioned field; see the [gameplay model](hand-recording.md). Current wind artwork is 東 for HK and 南 for four-player Riichi. 西 and 北 appear as disabled Coming soon cards; they remain outside the playable variant union.
+The current RC4 display version is v1.0.0rc4 and the valid npm SemVer is 1.0.0-rc.4. The compact mobile and centered desktop layout from v0.2.0b/c is preserved. Database/store/key and record schemaVersion remain unchanged. New gameplay data is an additive, independently versioned field; see the [gameplay model](hand-recording.md). Current wind artwork is 東 for HK and 南 for four-player Riichi. 西 and 北 appear as disabled Coming soon cards; they remain outside the playable variant union.
 
 The mobile table uses content-sized grid rows and a dynamic-viewport minimum size, capped for larger phones. Safari safe areas are included in spacing and size calculations. Long names, expanded settings, accessibility text and short screens can increase page height; ordinary scrolling is intentional. Preparation actions stay outside secondary details. During play there is no More panel or manual turn tracker. Player and wall dialogs use their own dynamic-height scroll areas.
 
@@ -126,4 +126,40 @@ The same `useSettings` write queue handles all data. Round reset/variant changes
 
 Theme preference is system/light/dark, independent of gameplay. IndexedDB is authoritative; localStorage key `mahjong-buddy:theme` is only a pre-paint cache for the HTML bootstrap. System media changes are subscribed while in system mode. Global CSS tokens cover dialogs, fields, palettes, errors and the shell; original tile SVG pigments remain unchanged.
 
-RC1 is a friends-testing prerelease. No commit, push, deployment or new network dependency is part of implementation. See [RC1 review report](release-rc1.md) for release limits, test results and proposed commit text.
+RC4 remains a prerelease; the RC1 review report below is historical. No commit, push, deployment or new network dependency is part of implementation. See [RC1 review report](release-rc1.md) for release limits, test results and proposed commit text.
+
+## RC4 scoring implementation and migration
+
+- `src/features/scoring/shape.ts`: exhaustive standard/special decompositions and eligible winning-tile groups.
+- `riichi.ts` / `hongKong.ts`: pure variant-specific patterns, exclusions, Fu and limit values.
+- `evaluate.ts`: authoritative-meld/context validation, untracked legality confirmations, known responsibility blockers and conserved four-player payments.
+- `indicators.ts` / `IndicatorEditor.tsx`: shared round positions, reveal timing, first-indicator preparation gate and explicit corrections.
+- `settlement.ts`: immutable lock, independent final payment, stale-state checks, atomic archive/progression and reasoned reversal.
+- `storage.ts`: conservative snapshot/ledger/history/reference checks, including unknown-version rejection.
+- `ResultPanel.tsx` / `scoring.css`: presentation-only 1.7-second eased amounts, 1.25-second entrance delay, tiered SVG glyph displacement/glow/particles and reduced-motion cleanup. No new dependencies or audio.
+- `src/features/hands/builder.ts` / `MeldReview.tsx` / `WinFlow.tsx`: three stages, stable selected tile IDs, manual winning-tile designation, automatic meld import, explicit source-action corrections, complete preview and lock.
+
+The database remains `mahjong-companion`, version 1, store `settings`, key `table`, outer record schemaVersion 1. No object store or database rename. RC4 introduces gameplay version **2**, while reading valid legacy version 1. Migration clones and validates in memory, preserves player/action/meld/draft/round IDs and writes only after an explicit change through the existing serialized queue. Older binaries that support gameplay version 1 reject new version-2 scoring records instead of treating a locked hand as an ordinary editable draft. Versions beyond 2 fail closed. Match/rule/hand/indicator/score/audit records retain their own version boundaries.
+
+Round-level Dora, lock records, score snapshots and reversal reasons are additive fields. Legacy private indicators are retained in the draft's `legacyIndicators` for explicit review; they are not silently promoted to shared revealed tiles. Legacy Riichi declarations still require an actual-balance/pool baseline. Legacy decimal payout preferences remain readable but actual fractional payments are blocked. There is no automatic historical rescore or fabricated opening balance.
+
+A lock persists a confirmed snapshot plus an input fingerprint, not a financial transaction. Final settlement recomputes and compares it, then writes one outcome, one ledger row, balances/pool, archive and new physical ID together within the existing settings record transaction. Repeated finalization is rejected by status and round identity. Every saved win is cross-checked against its ledger/history references. A locked win also blocks exhaustive/abortive-draw replacement even if a UI marker is wrong. Resets archive recoverable records; archived locks can be inspected but cannot be paid in a new round. Audited reversals keep the original score/input snapshot and record a reason.
+
+Win/scoring screens expose storage state. Lock/final payment wait for a saved state; failed persistence retains memory and shows an in-dialog warning plus retry. An unavailable/failed initial read continues to forbid writes. As before, simultaneous independent tabs have no merge protocol; use one active table tab, and do not leave an old release running while upgrading.
+
+## RC4 validation and manual checks
+
+Deterministic tests use literal independent expected patterns/Fu/payments, not expected values generated by the function under test. Coverage includes the supported Yaku/Yakuman catalog, ambiguous hands, open reductions, Ron-completed triplets, red/indicator copies, unknown reveal states, all selected HK payouts, min/caps/exclusions, instant flowers, lock/preview separation, stale/tampered snapshots, first-Dora gating, version-1 migration, unknown versions, explicit reversals and duplicate-payment prevention.
+
+Isolated local headless Chrome checks the builder/results at 320/375/390/402/430px and 1280px desktop with the 590px shell, in Light and Dark. It checks no horizontal dialog/document overflow, reachable scrollable buttons, 44px tile targets, no payments on lock, exact saved final numbers, replay ledger stability and reduced-motion removal of SVG animation/particles. Synthetic data and an isolated temporary browser profile are used. Screenshots were inspected; this is not a physical iPhone or Safari result.
+
+Pending manual/device QA:
+
+1. iPhone Safari and standalone: safe areas, keyboard, nested final-confirmation focus, scrolling to save/lock/payment buttons, large text and pinch/browser zoom.
+2. Reconstruct a physical mixed-meld hand in both modes, correct the final tile without deleting the hand, and compare the app's full breakdown to the agreed table rules.
+3. Verify first and Kan-Dora positions/timing on a real wall, including Rinshan wins before a delayed open-Kan reveal and a robbed Added Kan. Confirm no stale/unknown indicator is guessed.
+4. Inspect every result tier from Mangan through four-or-more genuine Yakuman on mobile. Check typography, irregular glyph-edge effects, readable contrast and sustained Safari performance. Effects must reduce to a static presentation with reduced motion.
+5. Confirm final review cancel leaves editing available, refresh after lock reopens the immutable result, payment confirmation changes the ledger once, and an audited reversal restores the full previous balance/pool/dealer state.
+6. Induce actual quota/read failures and verify warnings, retries and write protection. Different devices/origins still do not synchronize.
+
+See [RC4 review report](release-rc4.md) for final check results and the exact proposed commit text. No commit, push or deployment is performed by this task.

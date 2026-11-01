@@ -91,7 +91,7 @@ export function reconcileLegacy(data: GameplayData, points: Points, pool: number
   }
   return { ...data, match: { ...match, points, pool, ledger, legacyUnreconciled: false } }
 }
-export function previewDraw(match: MatchState, type: RoundOutcome['type'], tenpai?: Tenpai): MatchCursor {
+export function previewDraw(match: MatchState, type: Exclude<RoundOutcome['type'], 'win'>, tenpai?: Tenpai): MatchCursor {
   let repeat = type === 'four-kan-abortive-draw'
   if (type === 'exhaustive-draw') repeat = match.rules.variant === 'hong-kong' ? match.rules.drawDealer === 'repeat' : !!tenpai?.[match.dealer]
   const kyoku = repeat ? match.kyoku : match.kyoku % 4 + 1
@@ -107,9 +107,10 @@ function cursor(match: MatchState): MatchCursor {
   const { dealer, roundWind, kyoku, sequence, honba, points, pool, phase, roundId, winPending } = match
   return { dealer, roundWind, kyoku, sequence, honba, points: structuredClone(points), pool, phase, roundId, winPending }
 }
-export function finalizeDraw(settings: Settings, roundId: string, type: RoundOutcome['type'], tenpai: Tenpai | undefined, confirmed: boolean): Settings {
+export function finalizeDraw(settings: Settings, roundId: string, type: Exclude<RoundOutcome['type'], 'win'>, tenpai: Tenpai | undefined, confirmed: boolean): Settings {
   const data = settings.gameplay; const match = data?.match
   if (!confirmed || !data || !match || match.phase !== 'playing' || settings.setup?.phase !== 'playing' || match.roundId !== roundId || data.activeRoundId !== roundId || match.history.some((item) => item.roundId === roundId && !item.undone)) throw new Error('此局已處理或未確認，不會重複結算。')
+  if (data.wins?.some((win) => win.roundId === roundId && win.status !== 'reversed')) throw new Error('本局手牌已鎖定，不能以流局覆蓋和牌結算。')
   if (match.winPending || match.pendingFourKan?.status === 'win-pending') throw new Error('和牌待處理；不會以流局取代和牌。')
   if (match.variant === 'riichi' && match.legacyUnreconciled) throw new Error('舊局未對帳，請先填寫實際點數及供託。')
   if (type === 'four-kan-abortive-draw' && !getFourKanDrawEligibility(data, match.rules).eligible) throw new Error('目前不符合四槓散了條件。')
@@ -133,6 +134,7 @@ export function prepareNext(settings: Settings, decision: 'continue' | 'end' = '
 export function undoLatestDraw(settings: Settings): Settings {
   const data = settings.gameplay; const match = data?.match
   const outcome = match?.history.filter((item) => !item.undone).at(-1)
+  if (outcome?.type === 'win') throw new Error('和牌結算須經有原因的明確撤銷流程。')
   if (!data || !match || !outcome || data.actions.some((item) => item.roundId === match.roundId) || data.drafts.some((draft) => draft.roundId === match.roundId)) throw new Error('下一局已有記錄，不能撤回上一局。')
   const rounds = data.rounds.map((round) => round.id === match.roundId ? { ...round, status: 'archived' as const } : round.id === outcome.roundId ? { ...round, status: 'active' as const } : round)
   return { ...settings, setup: structuredClone(outcome.setupBefore), gameplay: syncMatch({ ...data, rounds, activeRoundId: outcome.roundId, match: { ...match, ...outcome.before, pendingFourKan: undefined, history: match.history.map((item) => item.id === outcome.id ? { ...item, undone: true } : item), ledger: match.ledger.map((entry) => entry.id === `noten:${outcome.id}` ? { ...entry, status: 'reversed' } : entry) } }) }

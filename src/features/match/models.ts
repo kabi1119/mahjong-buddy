@@ -8,12 +8,12 @@ export interface MatchCursor {
   phase: 'playing' | 'between' | 'preparing' | 'end-decision' | 'ended'; roundId: string; winPending: boolean
 }
 export interface LedgerEntry {
-  id: string; roundId: string; kind: 'riichi' | 'noten'; actionId?: string; deltas: Points; poolDelta: number
+  id: string; roundId: string; kind: 'riichi' | 'noten' | 'win'; actionId?: string; deltas: Points; poolDelta: number
   status: 'active' | 'reversed'; includedInBaseline?: boolean
 }
 export interface FourKanPending { roundId: string; signature: string; status: 'pending' | 'deferred' | 'win-pending' }
 export interface RoundOutcome {
-  id: string; roundId: string; type: 'exhaustive-draw' | 'four-kan-abortive-draw'; tenpai?: Tenpai; deltas: Points
+  id: string; roundId: string; type: 'exhaustive-draw' | 'four-kan-abortive-draw' | 'win'; winId?: string; poolDelta?: number; tenpai?: Tenpai; deltas: Points
   before: MatchCursor; after: MatchCursor; setupBefore: GameSetup; undone: boolean; timestamp: number
 }
 export interface MatchState extends MatchCursor {

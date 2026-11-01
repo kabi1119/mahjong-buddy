@@ -1,3 +1,7 @@
+import { Sheet } from './components/Sheet'
+import { IndicatorEditor } from './features/scoring/IndicatorEditor'
+import { prepareRoundIndicators } from './features/scoring/indicators'
+import './features/scoring/scoring.css'
 import { MatchSettings } from './features/match/MatchSettings'
 import { MatchFlow } from './features/match/MatchFlow'
 import type { MatchView } from './features/match/MatchFlow'
@@ -25,6 +29,9 @@ function App() {
   const { settings, status, updateSettings } = useSettings()
   const { variant, players, setup: savedSetup, gameplay } = settings
   const theme = useTheme(settings.themePreference, status !== 'loading')
+  const [indicatorOpen, setIndicatorOpen] = useState(false)
+  const [dismissedIndicators, setDismissedIndicators] = useState('')
+  const [viewingWin, setViewingWin] = useState<string | null>(null)
   const [rulesOpen, setRulesOpen] = useState(false)
   const [matchView, setMatchView] = useState<MatchView | null>(null)
   const [dismissedFour, setDismissedFour] = useState('')
@@ -43,7 +50,13 @@ function App() {
   const playerCount = POSITIONS.filter((position) => players[position]).length
   const complete = playerCount === 4
   const pickingDealer = complete && setup.phase === 'selecting-dealer' && !editingPlayers
-  const dispatch = (action: SetupAction) => updateSettings((current) => ({ ...current, setup: updateSetup(current.setup ?? newSetup(), action) }))
+  const pendingIndicators = round?.dora?.entries.filter((entry) => entry.status === 'pending') ?? []
+  const indicatorSignature = pendingIndicators.map((entry) => entry.id + ':' + entry.revision).join('|')
+  const showIndicators = (!matchView || indicatorOpen) && round?.variant === 'riichi' && !actionPlayer && !winPlayer && !viewingWin && !rulesOpen && !editing && (indicatorOpen || (setup.phase === 'playing' && !!indicatorSignature && indicatorSignature !== dismissedIndicators))
+  const dispatch = (action: SetupAction) => {
+    if (action.type === 'dealt' && variant === 'riichi') { updateSettings(prepareRoundIndicators); setIndicatorOpen(true); return }
+    updateSettings((current) => ({ ...current, setup: updateSetup(current.setup ?? newSetup(), action) }))
+  }
   const dealerName = setup.dealer ? players[setup.dealer]?.nickname : ''
   const context = !complete ? `點選座位加入牌友（${playerCount}/4）`
     : editingPlayers && setup.phase === 'selecting-dealer' ? '點選座位編輯牌友，再返回選莊'
@@ -98,12 +111,13 @@ function App() {
           between={!!match && match.phase !== 'playing' && match.phase !== 'preparing'}
           onSettings={() => setRulesOpen(true)} onSummary={match ? () => setMatchView('summary') : undefined}
           onDraw={() => { if (!match) updateSettings(withActiveRound); setMatchView('draw') }}
-          onEdit={(position) => { if (pickingDealer) dispatch({ type: 'dealer', position }); else if (setup.phase === 'playing') { if (!round || !match) updateSettings(withActiveRound); setActionPlayer(position) } else setEditing(position) }}
+          onEdit={(position) => { if (pickingDealer) dispatch({ type: 'dealer', position }); else if (setup.phase === 'playing') { const locked = gameplay?.wins?.find((win) => win.roundId === gameplay.activeRoundId && win.status === 'locked'); if (locked) setViewingWin(locked.id); else { if (!round || !match) updateSettings(withActiveRound); setActionPlayer(position) } } else setEditing(position) }}
           disabled={status === 'loading' || rolling} />
         <p className="table-hint" aria-live="polite">{context}</p>
       </section>
+      {round?.variant === 'riichi' && setup.phase === 'playing' && pendingIndicators.length > 0 && <button className="secondary-button action-wide" type="button" onClick={() => setIndicatorOpen(true)}>寶牌／新槓寶牌待確認</button>}
       {pendingFour && pendingFour.status !== 'win-pending' && setup.phase === 'playing' && <button className="four-kan-notice secondary-button" type="button" onClick={() => setMatchView('four-kan')}>四槓散了條件 · 核對第四槓結果</button>}
-      {match && ['between', 'end-decision', 'ended'].includes(match.phase) ? <button className="secondary-button" type="button" onClick={() => setMatchView('summary')}>查看流局結果及準備下一局</button> : <GameControls key={variant} variant={variant} players={players} setup={setup}
+      {match && ['between', 'end-decision', 'ended'].includes(match.phase) ? <button className="secondary-button" type="button" onClick={() => setMatchView('summary')}>查看本局結果及準備下一局</button> : <GameControls key={variant} variant={variant} players={players} setup={setup}
         disabled={status === 'loading'} onAction={dispatch} onBusyChange={setRolling}
         onSelectDealer={() => setEditingPlayers(false)} editingPlayers={editingPlayers}
         onEditPlayers={() => setEditingPlayers((value) => !value)} fixedDealer={!!match}
@@ -113,16 +127,20 @@ function App() {
         <span role="status" className={status === 'error' || status === 'unavailable' ? 'storage-warning' : 'storage-status'}>
           {status === 'loading' ? '正在讀取本機設定…' : status === 'saving' ? '正在儲存設定…' : status === 'saved' ? '設定已於此瀏覽器自動儲存' : status === 'unavailable' ? '無法讀取本機設定；本次變更只保留至重新整理，未覆寫原有資料。' : '未能儲存最新設定；請保留此頁面，下次確認變更時會再嘗試。'}
         </span>
-        <p>測試版 · 尚未支援和牌計分<br />資料只存於此瀏覽器／裝置，不會同步；清除瀏覽資料可能移除記錄。 <a href="https://github.com/kabi1119/mahjong-buddy/issues" target="_blank" rel="noreferrer">回報問題</a></p>
+        <p>測試版 · 計分及結算須核對家規<br />資料只存於此瀏覽器／裝置，不會同步；清除瀏覽資料可能移除記錄。 <a href="https://github.com/kabi1119/mahjong-buddy/issues" target="_blank" rel="noreferrer">回報問題</a></p>
       </footer>
       {rulesOpen && <MatchSettings settings={settings} onSave={updateSettings} onClose={() => setRulesOpen(false)} />}
-      {match && !rulesOpen && !actionPlayer && !winPlayer && (matchView || autoFour) && <MatchFlow key={match.roundId + (matchView ?? 'auto')} settings={settings} view={matchView ?? (autoFour ? 'four-kan' : 'summary')} onUpdate={updateSettings} onClose={() => { setMatchView(null); if (pendingFour) setDismissedFour(pendingFour.signature) }} onRules={() => { setMatchView(null); setRulesOpen(true) }} onWin={setWinPlayer} />}
+      {match && !rulesOpen && !showIndicators && !viewingWin && !actionPlayer && !winPlayer && (matchView || autoFour) && <MatchFlow key={match.roundId + (matchView ?? 'auto')} settings={settings} view={matchView ?? (autoFour ? 'four-kan' : 'summary')} onUpdate={updateSettings} onClose={() => { setMatchView(null); if (pendingFour) setDismissedFour(pendingFour.signature) }} onRules={() => { setMatchView(null); setRulesOpen(true) }} onWin={setWinPlayer} onIndicators={() => { setMatchView(null); setIndicatorOpen(true) }} onViewWin={setViewingWin} /> }
       {actionPlayer && round && gameplay && setup.phase === 'playing' && <PlayerActions data={gameplay} playerId={actionPlayer}
         onChange={(data) => updateSettings((current) => ({ ...current, gameplay: data }))}
         onClose={() => setActionPlayer(null)} onEdit={() => { setEditing(actionPlayer); setActionPlayer(null) }}
         onWin={() => { setWinPlayer(actionPlayer); setActionPlayer(null) }} />}
-      {winPlayer && round && gameplay && setup.phase === 'playing' && <WinFlow data={gameplay} playerId={winPlayer}
-        onChange={(data) => updateSettings((current) => ({ ...current, gameplay: data }))} onClose={() => setWinPlayer(null)} />}
+      {showIndicators && gameplay && <Sheet title={setup.phase === 'wall-guide' ? '記錄首張寶牌指示牌' : '本局寶牌指示牌'} onClose={() => { setIndicatorOpen(false); setDismissedIndicators(indicatorSignature) }}>
+        <IndicatorEditor data={gameplay} onChange={(data) => updateSettings((current) => ({ ...current, gameplay: data }))} />
+        {setup.phase === 'wall-guide' && <button className="primary-button action-wide" type="button" disabled={!round?.dora?.entries.some((entry) => entry.kind === 'initial' && entry.status === 'effective')} onClick={() => { updateSettings((current) => ({ ...current, setup: updateSetup(current.setup!, { type: 'dealt' }) })); setIndicatorOpen(false) }}>確認指示牌並開始行牌</button>}
+      </Sheet>}
+      {(winPlayer || viewingWin) && gameplay && <WinFlow data={gameplay} settings={settings} winId={viewingWin} storageStatus={status} playerId={winPlayer ?? gameplay.wins!.find((win) => win.id === viewingWin)!.draft.winner}
+        onUpdate={updateSettings} onChange={(data) => updateSettings((current) => ({ ...current, gameplay: data }))} onClose={() => { setWinPlayer(null); setViewingWin(null) }} />}
       {editing && <PlayerEditor key={editing} position={editing} player={players[editing]}
         onSave={(player) => { updateSettings((current) => ({ ...current, players: { ...current.players, [player.position]: player } })); setEditing(null) }}
         onRemove={() => { updateSettings((current) => { const remaining = { ...current.players }; delete remaining[editing]; return { ...current, players: remaining } }); setEditing(null) }}

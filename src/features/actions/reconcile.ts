@@ -1,3 +1,4 @@
+import { syncRoundIndicators } from '../scoring/indicators'
 import { POSITIONS } from '../../types/mahjong'
 import type { Player, PlayerPosition } from '../../types/mahjong'
 import type { Settings } from '../../storage/settings'
@@ -26,6 +27,6 @@ export function reconcileGameplay(previous: Settings, next: Settings): Settings 
   if (next.setup?.phase === 'playing' && previous.setup?.phase !== 'playing') result = withActiveRound(result)
   const round = activeRound(result.gameplay)
   if (round && JSON.stringify(round.players) !== JSON.stringify(result.players)) result = { ...result, gameplay: { ...result.gameplay!, rounds: result.gameplay!.rounds.map((item) => item.id === round.id ? { ...item, players: structuredClone(result.players) as Record<PlayerPosition, Player> } : item) } }
-  if (result.gameplay) { const data = syncMatch(result.gameplay); if (data !== result.gameplay) result = { ...result, gameplay: data } }
+  if (result.gameplay) { const data = syncRoundIndicators(syncMatch(result.gameplay)); if (data !== result.gameplay) result = { ...result, gameplay: data } }
   return result
 }

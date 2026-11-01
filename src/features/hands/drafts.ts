@@ -1,3 +1,5 @@
+import { applyRedComposition } from '../actions/redComposition'
+import { validConditions } from '../scoring/storage'
 import { frozenRiichiRules } from '../match/engine'
 import { precedingPlayer } from '../actions/chi'
 import type { GameplayData, HandDraft, Meld } from '../actions/models'
@@ -37,9 +39,7 @@ export function upgradeDraftPon(draft: HandDraft, meldId: string, confirmed: boo
   return { ...draft, melds: draft.melds.map((meld) => meld.id === meldId ? upgradePon(pon, newId(), pon.tile, confirmed) : meld) }
 }
 export function setMeldRedCount(meld: Meld, count: number): Meld {
-  if (!Number.isInteger(count) || count < 0 || count > meld.tiles.filter((tile) => isFive(tile.type)).length) throw new Error('赤牌數量不正確。')
-  let remaining = count
-  return { ...meld, redCount: count, tiles: meld.tiles.map((tile) => ({ ...tile, red: isFive(tile.type) && remaining-- > 0 })) }
+  return applyRedComposition(meld, count)
 }
 export function validateDraft(draft: HandDraft, data: GameplayData, complete = false): string[] {
   const errors: string[] = []
@@ -61,7 +61,8 @@ export function validateDraft(draft: HandDraft, data: GameplayData, complete = f
     if (!Number.isInteger(configured) || configured < 0 || configured > 4) errors.push('赤五設定無效。')
     const fives = physical.filter((tile) => tile.type === `5${suit}`)
     if (fives.filter((tile) => tile.red).length > configured) errors.push(`${({ m: '萬', p: '筒', s: '索' })[suit]} 赤五超過此局設定。`)
-    if (fives.filter((tile) => !tile.red).length > 4 - configured) errors.push(`${({ m: '萬', p: '筒', s: '索' })[suit]} 普通五牌超過扣除赤五後的供應量。`)
+    const unknown = draft.melds.filter((meld) => meld.redCount === null).flatMap((meld) => meld.tiles).filter((tile) => tile.type === `5${suit}` && !tile.red).length
+    if (fives.filter((tile) => !tile.red).length - unknown > 4 - configured) errors.push(`${({ m: '萬', p: '筒', s: '索' })[suit]} 普通五牌超過扣除赤五後的供應量。`)
   }
   if (new Set(draft.flowers).size !== draft.flowers.length || draft.flowers.some((flower) => !(flower in FLOWERS))) errors.push('花牌每款只可一張。')
   if (draft.variant === 'riichi' && (draft.flowers.length || draft.win.specialFlower)) errors.push('立直模式不使用花牌。')
@@ -78,6 +79,7 @@ export function validateDraft(draft: HandDraft, data: GameplayData, complete = f
     if (complete && draft.variant === 'riichi' && meld.tiles.some((tile) => isFive(tile.type)) && meld.redCount === null) errors.push('請確認五牌副露的赤牌數量。')
   }
   if (new Set(draft.melds.map((meld) => meld.id)).size !== draft.melds.length) errors.push('重複副露組別。')
+  if (new Set(draft.indicators.map((entry) => entry.id)).size !== draft.indicators.length) errors.push('指示牌記錄 ID 重複，不可將同一位置計兩次。')
   const dora = draft.indicators.filter((item) => item.kind === 'dora').length
   const ura = draft.indicators.filter((item) => item.kind === 'ura').length
   if (dora > 1 + completedKanCount(data, draft)) errors.push('指示牌數量超過已完成槓的可用範圍；未完成／被搶的槓不計。')
@@ -96,6 +98,8 @@ export function validateDraft(draft: HandDraft, data: GameplayData, complete = f
   return [...new Set(errors)]
 }
 export function saveDraft(data: GameplayData, draft: HandDraft, confirm: boolean): GameplayData {
+  if (draft.conditions && !validConditions(draft.conditions)) throw new Error('情境設定或付款單位無效；請使用正整數或清除未定單位。')
+  if (data.wins?.some((win) => win.draft.id === draft.id && win.status !== 'reversed')) throw new Error('已鎖定的和牌輸入不可返回修改。')
   const errors = validateDraft(draft, data, confirm)
   if (errors.length) throw new Error(errors.join(' '))
   const saved = { ...structuredClone(draft), status: confirm ? 'confirmed' as const : 'draft' as const, updatedAt: Date.now() }

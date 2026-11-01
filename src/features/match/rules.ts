@@ -1,19 +1,34 @@
+import { defaultHKScoreRules, defaultRiichiScoreRules } from '../scoring/models'
+import type { HKScoreRules, RiichiScoreRules } from '../scoring/models'
 import type { Suit } from '../hands/tiles'
 export type ThemePreference = 'system' | 'light' | 'dark'
 export interface HongKongRules {
+  scoring?: HKScoreRules
   variant: 'hong-kong'; dice: 2 | 3; drawDealer: 'repeat' | 'rotate'; minimumFan: number; fanCap: 10 | 13
   payment: 'half-la' | 'full-la' | 'custom'; payouts: { fan: number; ron: number; tsumo: number }[]; winds: 4
 }
 export interface JapaneseRiichiRules {
+  scoring?: RiichiScoreRules
   variant: 'riichi'; length: 'hanchan' | 'tonpuu'; startingPoints: number; redFives: Record<Suit, number>
   fourKanAbortive: boolean; maxKans: 4; notenTotal: 3000
 }
 export type MatchRules = HongKongRules | JapaneseRiichiRules
 export interface RulePreferences { version: 1; hongKong: HongKongRules; riichi: JapaneseRiichiRules }
-export const defaultHK = (): HongKongRules => ({ variant: 'hong-kong', dice: 3, drawDealer: 'repeat', minimumFan: 3, fanCap: 13, payment: 'half-la', payouts: [], winds: 4 })
-export const defaultRiichi = (): JapaneseRiichiRules => ({ variant: 'riichi', length: 'hanchan', startingPoints: 25000, redFives: { m: 1, p: 1, s: 1 }, fourKanAbortive: true, maxKans: 4, notenTotal: 3000 })
+export const defaultHK = (): HongKongRules => ({ scoring: defaultHKScoreRules(), variant: 'hong-kong', dice: 3, drawDealer: 'repeat', minimumFan: 3, fanCap: 13, payment: 'half-la', payouts: [], winds: 4 })
+export const defaultRiichi = (): JapaneseRiichiRules => ({ scoring: defaultRiichiScoreRules(), variant: 'riichi', length: 'hanchan', startingPoints: 25000, redFives: { m: 1, p: 1, s: 1 }, fourKanAbortive: true, maxKans: 4, notenTotal: 3000 })
 export const defaultPreferences = (): RulePreferences => ({ version: 1, hongKong: defaultHK(), riichi: defaultRiichi() })
 export function validateRules(rules: MatchRules): string[] {
+  if (rules.scoring) {
+    const score = rules.scoring
+    if (score.version !== 1) return ['未知計分設定版本。']
+    if (rules.variant === 'hong-kong') {
+      const hk = rules.scoring as HKScoreRules
+      if (![8, 10, 'cap'].includes(hk.kankan) || typeof hk.sevenPairs !== 'boolean' || (hk.baseUnit !== undefined && (!Number.isSafeInteger(hk.baseUnit) || hk.baseUnit <= 0)) || ![hk.ronMultiplier, hk.tsumoMultiplier].every((amount) => Number.isSafeInteger(amount) && amount > 0)) return ['港式計分設定無效。']
+    } else {
+      const jp = rules.scoring as RiichiScoreRules
+      if (![jp.kiriage, jp.doubleYakuman, jp.stackYakuman, jp.openTanyao].every((flag) => typeof flag === 'boolean') || !['yakuman', 'sanbaiman'].includes(jp.kazoe) || ![2, 4].includes(jp.doubleWindPair) || !['immediate', 'ankan-immediate-open-after-discard'].includes(jp.kanReveal)) return ['日本計分設定無效。']
+    }
+  }
   if (rules.variant === 'hong-kong') {
     if (![2, 3].includes(rules.dice) || !['repeat', 'rotate'].includes(rules.drawDealer) || !Number.isInteger(rules.minimumFan) || rules.minimumFan < 0 || rules.minimumFan > rules.fanCap || ![10, 13].includes(rules.fanCap) || rules.winds !== 4 || !['half-la', 'full-la', 'custom'].includes(rules.payment)) return ['港式規則設定無效。']
     if (!Array.isArray(rules.payouts) || rules.payouts.some((row) => !Number.isInteger(row.fan) || row.fan < rules.minimumFan || row.fan > rules.fanCap || !Number.isFinite(row.ron) || row.ron < 0 || !Number.isFinite(row.tsumo) || row.tsumo < 0) || new Set(rules.payouts.map((row) => row.fan)).size !== rules.payouts.length) return ['自訂付款表無效。']

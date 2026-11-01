@@ -1,108 +1,126 @@
-import { frozenRiichiRules } from '../match/engine'
-import { precedingPlayer } from '../actions/chi'
 import { useState } from 'react'
 import { Sheet } from '../../components/Sheet'
 import { POSITIONS } from '../../types/mahjong'
 import type { PlayerPosition } from '../../types/mahjong'
-import { activeRound, getEligibleAddedKanMelds, makeMeld, projectRound } from '../actions/engine'
-import { ACTION_LABELS } from '../actions/models'
-import type { GameplayData, HandDraft, MeldKind } from '../actions/models'
-import { completedKanCount, createDraft, hasConfirmedRiichi, logicalTileCount, physicalTileCount, saveDraft, setMeldRedCount, upgradeDraftPon, validateDraft } from './drafts'
-import { FLOWERS, getDoraFromIndicator, newId, tileInstance, tileLabel } from './tiles'
+import type { Settings } from '../../storage/settings'
+import { activeRound, projectRound, recordAction } from '../actions/engine'
+import type { GameplayData, HandDraft } from '../actions/models'
+import { createDraft, hasConfirmedRiichi, logicalTileCount, physicalTileCount, saveDraft, setMeldRedCount, validateDraft } from './drafts'
+import { FLOWERS, HONORS, TILE_CATALOG, newId, tileInstance, tileLabel } from './tiles'
 import type { FlowerType, TileType } from './tiles'
-import { TileFace, TilePicker, TileRow } from './TilePicker'
-interface Props { data: GameplayData; playerId: PlayerPosition; onChange: (data: GameplayData) => void; onClose: () => void }
-type Target = 'concealed' | 'winning' | 'dora' | 'ura' | Exclude<MeldKind, 'shouminkan'>
-export function WinFlow({ data, playerId, onChange, onClose }: Props) {
-  const round = activeRound(data)!
-  const [draft, setDraft] = useState(() => createDraft(data, round.id, playerId))
+import { TileFace, TileRow } from './TilePicker'
+import { addSelectedTile, correctRecordedRedCount, designateWinningTile, removeSelectedTile } from './builder'
+import { MeldReview } from './MeldReview'
+import { evaluateWin, isOrdinaryTileAvailable } from '../scoring/evaluate'
+import { emptyConditions } from '../scoring/models'
+import type { ScoreResult, WinConditions } from '../scoring/models'
+import { lockWinningHand } from '../scoring/settlement'
+import { importRoundIndicators, effectiveIndicators } from '../scoring/indicators'
+import { IndicatorEditor } from '../scoring/IndicatorEditor'
+import { ResultPanel } from '../scoring/ResultPanel'
+import { syncMatch } from '../match/engine'
+interface Props {
+  data: GameplayData; settings: Settings; playerId: PlayerPosition; winId?: string | null; storageStatus: string
+  onUpdate: (update: (s: Settings) => Settings) => void; onChange: (data: GameplayData) => void; onClose: () => void
+}
+function WinCatalog({ data, draft, flowers, disabled, onPick, onFlower }: { data: GameplayData; draft: HandDraft; flowers: boolean; disabled: boolean; onPick: (tile: TileType, red: boolean) => void; onFlower: (flower: FlowerType) => void }) {
+  const [group, setGroup] = useState('m')
+  const options = [['m', '萬子'], ['p', '筒子'], ['s', '索子'], ['z', '番子'], ...(flowers ? [['flowers', '花牌']] : [])]
+  const tiles = TILE_CATALOG.filter((type) => group === 'z' ? HONORS.includes(type as typeof HONORS[number]) : type.endsWith(group))
+  return <section aria-label="手牌選牌區" className="win-catalog"><div className="tile-tabs" role="group" aria-label="手牌分類">{options.map(([id, name]) => <button type="button" key={id} aria-pressed={group === id} onClick={() => setGroup(id)}>{name}</button>)}</div>
+    {group === 'flowers' ? <div className="flower-palette">{Object.entries(FLOWERS).map(([id, name]) => <button type="button" key={id} aria-label={`花牌 ${name}`} disabled={draft.flowers.includes(id as FlowerType)} onClick={() => onFlower(id as FlowerType)}>{name}</button>)}</div> : <div className="tile-palette">{tiles.flatMap((type) => [false, ...(draft.variant === 'riichi' && /^5[mps]$/.test(type) ? [true] : [])].map((red) => <button type="button" key={`${type}:${red}`} aria-label={tileLabel(type, red)} disabled={disabled || !isOrdinaryTileAvailable(data, draft, type, red)} onClick={() => onPick(type, red)}><TileFace type={type} red={red} /><span>{tileLabel(type, red)}</span></button>))}</div>}
+  </section>
+}
+const situationLabels: [keyof WinConditions, string][] = [
+  ['doubleRiichi', '雙立直：首巡、未有鳴牌前已實體宣告'], ['ippatsu', '一發：立直後一巡內，無人鳴牌或開槓'],
+  ['rinshan', '嶺上／槓上自摸：和牌張確為完成槓後的補牌'], ['chankan', '搶槓：食取未完成加槓的那張牌'],
+  ['haitei', '海底自摸：普通牌山最後一張（不是嶺上牌）'], ['houtei', '河底榮和：最後一張棄牌'],
+  ['tenhou', '天和：莊家起手，無鳴牌／槓'], ['chiihou', '地和：閒家第一摸，無鳴牌／槓'],
+  ['hkHeaven', '天糊：莊家起手自摸'], ['hkEarth', '地糊：食莊家第一張棄牌'], ['hkHuman', '人糊：閒家首巡自摸，無鳴牌／槓'], ['consecutiveKan', '連槓開花：連續補槓後自摸，中途沒有補花'],
+]
+export function WinFlow({ data, settings, playerId, winId, storageStatus, onUpdate, onChange, onClose }: Props) {
+  const currentRound = activeRound(data)
+  const existingWin = data.wins?.find((win) => win.id === winId || (!winId && win.roundId === data.activeRoundId && win.status !== 'reversed'))
+  const [draft, setDraft] = useState(() => existingWin?.draft ?? createDraft(data, currentRound!.id, playerId))
+  const [lockedId, setLockedId] = useState<string | null>(existingWin?.id ?? null)
   const [stage, setStage] = useState<'context' | 'builder'>('context')
-  const [target, setTarget] = useState<Target>('winning')
-  const [dirty, setDirty] = useState(false)
-  const [closing, setClosing] = useState(false)
-  const [error, setError] = useState('')
-  const [showErrors, setShowErrors] = useState(false)
-  const [kanConfirmed, setKanConfirmed] = useState(false)
-  const [upgradeId, setUpgradeId] = useState('')
-  const [syncConfirmed, setSyncConfirmed] = useState(false)
-  const draftRound = data.rounds.find((item) => item.id === draft.roundId)!
-  const winnerName = draftRound.players[draft.winner].nickname
-  const uraAllowed = hasConfirmedRiichi(data, draft)
-  const kans = completedKanCount(data, draft)
-  const errors = validateDraft(draft, data, true)
-  function change(next: HandDraft, enforceLimits = true) {
-    const problems = validateDraft(next, data)
-    if (enforceLimits && problems.length) { setError(problems.join(' ')); return }
+  const [conditions, setConditions] = useState<WinConditions>(() => draft.conditions ?? emptyConditions())
+  const [dirty, setDirty] = useState(false); const [closing, setClosing] = useState(false); const [preview, setPreview] = useState(false)
+  const [meldEditor, setMeldEditor] = useState(false); const [chooseWinning, setChooseWinning] = useState(false)
+  const [target, setTarget] = useState<'hand' | 'ura'>('hand'); const [error, setError] = useState(''); const [riichiConfirm, setRiichiConfirm] = useState(false)
+  const locked = data.wins?.find((win) => win.id === lockedId)
+  const finalDraft = importRoundIndicators(data, draft)
+  const round = data.rounds.find((item) => item.id === draft.roundId)!
+  const riichi = hasConfirmedRiichi(data, finalDraft)
+  const unknownOtherFives = draft.variant === 'riichi' ? projectRound(data, draft.roundId).melds.filter((meld) => meld.playerId !== draft.winner && meld.redCount === null && meld.tiles.some((tile) => /^5[mps]$/.test(tile.type))) : []
+  const savedDrafts = data.drafts.filter((item) => item.winner === playerId && item.variant === round.variant && !data.wins?.some((win) => win.draft.id === item.id && win.status !== 'reversed'))
+  const hand = [...draft.concealed, ...(draft.winningTile ? [draft.winningTile] : [])].sort((a, b) => TILE_CATALOG.indexOf(a.type) - TILE_CATALOG.indexOf(b.type) || Number(a.red) - Number(b.red))
+  let score: ScoreResult | undefined; let problem = ''
+  if (!locked && stage === 'builder' && (logicalTileCount(finalDraft) === 14 || finalDraft.win.specialFlower)) {
+    try { score = evaluateWin(data, finalDraft, conditions) } catch (err) { problem = err instanceof Error ? err.message : '無法可靠計分。' }
+  }
+  function change(next: HandDraft, validate = true) {
+    const problems = validate ? validateDraft(next, data) : []
+    if (problems.length) { setError(problems.join(' ')); return }
     setDraft({ ...next, status: 'draft' }); setDirty(true); setError('')
   }
   function pick(type: TileType, red: boolean) {
-    if (target === 'winning') change({ ...draft, winningTile: tileInstance(type, red) })
-    else if (target === 'concealed') change({ ...draft, concealed: [...draft.concealed, tileInstance(type, red)] })
-    else if (target === 'dora' || target === 'ura') change({ ...draft, indicators: [...draft.indicators, { id: newId(), kind: target, tile: tileInstance(type, red) }] })
-    else {
-      if ((target === 'ankan' || target === 'daiminkan') && !kanConfirmed) { setError('請先確認此組槓已完成。'); return }
-      const source = target === 'chi' && draft.variant === 'riichi' ? precedingPlayer(draft.winner) : null
-      change({ ...draft, melds: [...draft.melds, makeMeld(target, type, draft.winner, draft.roundId, draft.variant, newId(), source)] })
-      setKanConfirmed(false)
-    }
+    try {
+      if (target === 'ura') change({ ...finalDraft, indicators: [...finalDraft.indicators, { id: newId(), kind: 'ura', tile: tileInstance(type, red) }] })
+      else change(addSelectedTile(finalDraft, type, red))
+    } catch (err) { setError(err instanceof Error ? err.message : '未能加入牌張。') }
   }
-  function persist(confirm: boolean) {
-    try { const next = saveDraft(data, draft, confirm); onChange(confirm && next.match?.roundId === draft.roundId ? { ...next, match: { ...next.match, winPending: true } } : next); onClose() }
-    catch (err) { setShowErrors(confirm); setError(err instanceof Error ? err.message : '未能儲存草稿。') }
-  }
-  const chooseTarget = (next: Target) => { setTarget(next); setError(''); setKanConfirmed(false) }
-  const savedDrafts = data.drafts.filter((item) => item.winner === playerId && item.variant === round.variant)
-  return <Sheet title={stage === 'context' ? '食糊／和牌記錄' : '贏牌 Hand Builder'} className="hand-builder" onClose={() => dirty ? setClosing(true) : onClose()}>
-    {closing ? <div className="discard-confirm"><h3>放棄未儲存修改？</h3><p>已儲存的草稿會保留。</p><button type="button" className="primary-button action-wide" onClick={() => setClosing(false)}>繼續編輯</button><button type="button" className="secondary-button action-wide" onClick={onClose}>放棄未儲存修改</button></div> : <>
-      <p className="action-player"><img src="/mahjong.svg" alt="" width="32" height="32" /> {winnerName} · {draft.variant === 'hong-kong' ? '香港麻雀' : '四人立直'}</p>
-      <p className="action-note">只重建本次贏牌輸入；不計分、不判定合法和牌、不結束牌局。</p>
-      {stage === 'context' && savedDrafts.length > 0 && <details className="saved-drafts"><summary>繼續已儲存草稿／記錄（{savedDrafts.length}）</summary>{savedDrafts.map((item) => <button type="button" className="secondary-button action-wide" key={item.id} onClick={() => { setDraft(structuredClone(item)); setDirty(false); setStage('builder'); setTarget('concealed'); setError('') }}>{item.status === 'draft' ? '繼續草稿' : '編輯已確認輸入'} · {new Intl.DateTimeFormat('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(item.updatedAt)}{item.roundId !== round.id && '（舊局）'}</button>)}</details>}
-      <section className="builder-section"><h3>贏家與方式</h3>
-        <label className="action-field">方式<select aria-label="贏牌方式" value={draft.win.method} onChange={(event) => change({ ...draft, win: { ...draft.win, method: event.target.value as 'tsumo' | 'ron', sourcePlayer: null } })}><option value="tsumo">自摸 / Tsumo</option><option value="ron">{draft.variant === 'riichi' ? '榮和 / Ron' : '出銃'}</option></select></label>
-        {draft.win.method === 'ron' && <label className="action-field">{draft.variant === 'riichi' ? '放銃玩家' : '出銃玩家'}<select aria-label={draft.variant === 'riichi' ? '放銃玩家' : '出銃玩家'} value={draft.win.sourcePlayer ?? ''} onChange={(event) => change({ ...draft, win: { ...draft.win, sourcePlayer: (event.target.value || null) as PlayerPosition | null } })}><option value="">請選擇</option>{POSITIONS.filter((seat) => seat !== draft.winner).map((seat) => <option key={seat} value={seat}>{draftRound.players[seat].nickname}</option>)}</select></label>}
-        {draft.variant === 'hong-kong' && <label className="check-line"><input type="checkbox" checked={draft.win.specialFlower} onChange={(event) => change({ ...draft, win: { ...draft.win, specialFlower: event.target.checked } })} />花糊記錄（不要求一般 14 張；資格自行核對）</label>}
-      </section>
-      {stage === 'builder' && <>
-        <section className="builder-section"><h3>暗牌 <small>不包括食糊／和牌牌張</small></h3>
-          <TileRow tiles={draft.concealed} onRemove={(id) => change({ ...draft, concealed: draft.concealed.filter((tile) => tile.id !== id) })} />
-          <button className="secondary-button action-wide" type="button" onClick={() => chooseTarget('concealed')}>加入暗牌</button>
+  function conditionChange(next: WinConditions) { setConditions(next); setDirty(true); setError('') }
+  function save() { try { onChange(saveDraft(data, { ...finalDraft, conditions }, false)); setDirty(false); onClose() } catch (err) { setError(err instanceof Error ? err.message : '未能儲存草稿。') } }
+  const title = locked ? '計分與四人結算' : stage === 'context' ? draft.variant === 'riichi' ? '和牌記錄' : '食糊記錄' : '贏牌 Hand Builder'
+  const close = () => !locked && dirty ? setClosing(true) : onClose()
+  const showHand = <><div className="selected-hand" aria-label="已選手牌">{hand.map((tile) => <button type="button" key={tile.id} className={tile.id === draft.winningTile?.id ? 'winning-tile' : ''} aria-label={`${chooseWinning ? '指定和牌張：' : '移除'}${tileLabel(tile.type, tile.red)}`} onClick={() => {
+    if (chooseWinning) { if (tile.id !== draft.winningTile?.id) change(designateWinningTile(finalDraft, tile.id)); setChooseWinning(false) }
+    else change(removeSelectedTile(finalDraft, tile.id))
+  }}><TileFace type={tile.type} red={tile.red} />{tile.id === draft.winningTile?.id && <small>和牌張</small>}</button>)}</div>
+    {draft.flowers.length > 0 && <div className="selected-flowers">{draft.flowers.map((flower) => <button key={flower} type="button" aria-label={`移除花牌 ${FLOWERS[flower]}`} onClick={() => change({ ...finalDraft, flowers: draft.flowers.filter((item) => item !== flower) })}>{FLOWERS[flower]}</button>)}</div>}
+    {draft.melds.length > 0 && <section className="recorded-melds"><h3>已記錄牌組</h3>{draft.melds.map((meld) => <article className="meld-card" key={meld.id}><strong>{meld.kind === 'chi' ? '上／吃' : meld.kind === 'pon' ? '碰' : meld.kind === 'ankan' ? '暗槓' : meld.kind === 'shouminkan' ? '加槓' : '大明槓'} · {meld.open ? '明' : '暗'}</strong><TileRow tiles={meld.tiles} /><small>來源：{meld.sourcePlayer ? round.players[meld.sourcePlayer].nickname : '未記錄／暗槓'}</small>{draft.variant === 'riichi' && meld.tiles.some((tile) => /^5[mps]$/.test(tile.type)) && <label className="action-field">核對實體赤五<select aria-label={`牌組 ${meld.id} 赤五數量`} value={meld.redCount ?? ''} onChange={(event) => { try { const count = Number(event.target.value); const next = correctRecordedRedCount(data, meld.id, count); const updated = setMeldRedCount(meld, count); onChange(next); change({ ...finalDraft, melds: draft.melds.map((item) => item.id === meld.id ? updated : item) }) } catch (err) { setError(err instanceof Error ? err.message : '未能核對赤五。') } }}><option value="" disabled>請核對</option>{Array.from({ length: meld.tiles.filter((tile) => /^5[mps]$/.test(tile.type)).length + 1 }, (_, index) => <option key={index} value={index}>{index}</option>)}</select></label>}</article>)}</section>}
+  </>
+  const otherFiveReview = unknownOtherFives.length > 0 && <details className="action-history"><summary>其他牌友副露赤五待核對（{unknownOtherFives.length}）</summary><p>同種五牌會共用四張實體供應量；只核對已公開副露，不需輸入其他手牌。</p>{unknownOtherFives.map((meld) => <label className="action-field" key={meld.id}>{round.players[meld.playerId].nickname}<TileRow tiles={meld.tiles} /><select aria-label={'其他副露 ' + meld.id + ' 赤五數量'} value="" onChange={(event) => { try { onChange(correctRecordedRedCount(data, meld.id, Number(event.target.value))) } catch (err) { setError(err instanceof Error ? err.message : '未能核對赤五。') } }}><option value="" disabled>核對實體赤五</option>{Array.from({ length: meld.tiles.filter((tile) => /^5[mps]$/.test(tile.type)).length + 1 }, (_, index) => <option key={index} value={index}>{index}</option>)}</select></label>)}</details>
+  return <Sheet title={title} className="hand-builder" onClose={close}>
+    {locked ? <ResultPanel settings={settings} win={locked} onUpdate={onUpdate} onClose={onClose} storageStatus={storageStatus} /> : closing ? <div className="discard-confirm"><h3>放棄未儲存修改？</h3><p>已儲存草稿及明確補錄的動作會保留。</p><button className="primary-button action-wide" type="button" onClick={() => setClosing(false)}>繼續編輯</button><button className="secondary-button action-wide" type="button" onClick={onClose}>放棄未儲存修改</button></div> : <>
+      <p className="action-player">{round.players[draft.winner].avatar} {round.players[draft.winner].nickname} · {draft.variant === 'riichi' ? '日本四麻' : '香港麻雀'}</p>
+      {stage === 'context' ? <>
+        <label className="action-field">贏牌方式<select aria-label="贏牌方式" value={draft.win.method} onChange={(event) => change({ ...finalDraft, win: { ...draft.win, method: event.target.value as 'tsumo' | 'ron', sourcePlayer: null } })}><option value="tsumo">自摸</option><option value="ron">{draft.variant === 'riichi' ? '榮和' : '出銃'}</option></select></label>
+        {draft.win.method === 'ron' && <label className="action-field">棄牌玩家<select aria-label="棄牌玩家" value={draft.win.sourcePlayer ?? ''} onChange={(event) => change({ ...finalDraft, win: { ...draft.win, sourcePlayer: (event.target.value || null) as PlayerPosition | null } })}><option value="">請選擇</option>{POSITIONS.filter((seat) => seat !== draft.winner).map((seat) => <option key={seat} value={seat}>{round.players[seat].nickname}</option>)}</select></label>}
+        {draft.variant === 'hong-kong' && <label className="check-line"><input type="checkbox" checked={draft.win.specialFlower} onChange={(event) => change({ ...finalDraft, win: { ...draft.win, specialFlower: event.target.checked } })} />七／八花即食（不需普通 14 張牌）</label>}
+        {savedDrafts.length > 0 && <details className="saved-drafts"><summary>繼續已儲存草稿／記錄（{savedDrafts.length}）</summary>{savedDrafts.map((item) => <button className="secondary-button action-wide" type="button" key={item.id} onClick={() => { setDraft(structuredClone(item)); setConditions(item.conditions ?? emptyConditions()); setStage('builder'); setDirty(false) }}>繼續草稿 · {new Date(item.updatedAt).toLocaleDateString('zh-HK')}{item.roundId !== data.activeRoundId && '（舊局，只可存草稿）'}</button>)}</details>}
+        <button className="primary-button action-wide" type="button" disabled={draft.win.method === 'ron' && !draft.win.sourcePlayer} onClick={() => setStage('builder')}>繼續重建贏牌</button>
+      </> : <>
+        <p className="winning-instruction">請將最後和牌嗰張留到最後選擇。</p>
+        <p className="hand-count" role="status">邏輯牌 {logicalTileCount(finalDraft)}/14 · 尚餘 {Math.max(0, 14 - logicalTileCount(finalDraft))} · 實體普通牌 {physicalTileCount(finalDraft)}（花牌另計）</p>
+        <h3>已選手牌 <small>點牌移除；排序不會改變和牌張</small></h3>{showHand}{otherFiveReview}
+        {hand.length > 1 && <button className="secondary-button action-wide" type="button" aria-pressed={chooseWinning} onClick={() => setChooseWinning((value) => !value)}>{chooseWinning ? '請點選上方手牌，指定和牌張' : '改選和牌張'}</button>}
+        <WinCatalog data={data} draft={finalDraft} flowers={draft.variant === 'hong-kong' && target === 'hand'} disabled={target === 'hand' ? logicalTileCount(finalDraft) >= 14 : finalDraft.indicators.filter((item) => item.kind === 'ura').length >= effectiveIndicators(data, draft.roundId).length} onPick={pick} onFlower={(flower) => change({ ...finalDraft, flowers: [...finalDraft.flowers, flower] })} />
+        <p className="action-note">{target === 'ura' ? '現在選擇實際裏寶牌指示牌。' : '現在選擇未副露的手牌，最後一張會標作和牌張。'}</p>
+        {target === 'ura' && <button className="secondary-button action-wide" type="button" onClick={() => setTarget('hand')}>返回手牌選牌</button>}
+        <section className="builder-section"><h3>有冇漏咗記錄嘅上／吃、碰、槓？</h3><button className="secondary-button action-wide" type="button" onClick={() => setMeldEditor((value) => !value)}>補充遺漏副露</button>
+          {meldEditor && <MeldReview data={data} draft={finalDraft} onClose={() => setMeldEditor(false)} onChange={(next, updated) => { onChange(next); change(updated, false) }} />}
+          <label className="check-line"><input type="checkbox" checked={draft.reviewedMelds ?? false} onChange={(event) => change({ ...finalDraft, reviewedMelds: event.target.checked }, false)} />已核對所有副露、槓、明暗及赤牌組成，沒有遺漏</label>
         </section>
-        <section className="builder-section"><h3>副露與槓 <small>只改重建，不改動作記錄</small></h3>
-          {(['calls', 'kans'] as const).map((group) => <div key={group}><h4>{group === 'calls' ? '明副露 · 上／吃、碰' : '槓 · 暗槓、大明槓、加槓'}</h4>{draft.melds.filter((meld) => group === 'calls' ? meld.kind === 'chi' || meld.kind === 'pon' : meld.kind !== 'chi' && meld.kind !== 'pon').map((meld) => <article className="meld-card" key={meld.id}>
-            <div className="meld-heading"><strong>{ACTION_LABELS[meld.kind]} · {meld.open ? '明' : '暗'} · {meld.tiles.length} 張／1 組</strong><button type="button" className="text-action" onClick={() => change({ ...draft, melds: draft.melds.filter((item) => item.id !== meld.id) })}>移除此組</button></div>
-            <TileRow tiles={meld.tiles} />
-            {draft.variant === 'riichi' && meld.tiles.some((tile) => /^5[mps]$/.test(tile.type)) && <label className="action-field">此組赤五數量<select aria-label={`第 ${draft.melds.indexOf(meld) + 1} 組副露赤五數量`} value={meld.redCount ?? ''} onChange={(event) => change({ ...draft, melds: draft.melds.map((item) => item.id === meld.id ? setMeldRedCount(item, Number(event.target.value)) : item) })}><option value="" disabled>請核對實體牌</option>{Array.from({ length: meld.tiles.filter((tile) => /^5[mps]$/.test(tile.type)).length + 1 }, (_, count) => <option key={count} value={count}>{count}</option>)}</select></label>}
-            {meld.open && <label className="action-field">來源玩家<select aria-label={`第 ${draft.melds.indexOf(meld) + 1} 組副露來源`} value={meld.sourcePlayer ?? ''} onChange={(event) => change({ ...draft, melds: draft.melds.map((item) => item.id === meld.id ? { ...item, sourcePlayer: (event.target.value || null) as PlayerPosition | null } : item) })}><option value="">未記錄</option>{POSITIONS.filter((seat) => seat !== draft.winner).map((seat) => <option key={seat} value={seat}>{draftRound.players[seat].nickname}</option>)}</select></label>}
-            {getEligibleAddedKanMelds(draft.winner, draft.roundId, [meld]).length > 0 && <button type="button" className="text-action" onClick={() => setUpgradeId(meld.id)}>將這組碰改為加槓</button>}
-            {meld.kind === 'shouminkan' && meld.originalPon && <button type="button" className="text-action" onClick={() => change({ ...draft, melds: draft.melds.map((item) => item.id === meld.id ? structuredClone(meld.originalPon!) : item) })}>還原為碰</button>}
-          </article>)}</div>)}
-          {upgradeId && <div className="upgrade-confirm"><p>確認已取得相同的第四張實體牌，並已完成這組加槓？</p><button className="primary-button action-wide" type="button" onClick={() => { try { change(upgradeDraftPon(draft, upgradeId, true)); setUpgradeId('') } catch (err) { setError(String(err)) } }}>確認第四張並升級</button><button className="secondary-button action-wide" type="button" onClick={() => setUpgradeId('')}>取消加槓</button></div>}
-          <div className="builder-tools">{(['chi', 'pon', 'ankan', 'daiminkan'] as const).map((kind) => <button className="secondary-button" type="button" key={kind} onClick={() => chooseTarget(kind)}>新增{ACTION_LABELS[kind]}</button>)}</div>
-          <details><summary>重新載入已記錄副露</summary><p>會取代草稿副露，暗牌仍保留。</p><label className="check-line"><input type="checkbox" checked={syncConfirmed} onChange={(event) => setSyncConfirmed(event.target.checked)} />確認取代</label><button type="button" className="secondary-button action-wide" disabled={!syncConfirmed} onClick={() => { change({ ...draft, melds: structuredClone(projectRound(data, draft.roundId).melds.filter((meld) => meld.playerId === draft.winner)) }); setSyncConfirmed(false) }}>同步已記錄副露</button></details>
-        </section>
+        {draft.variant === 'riichi' && <section className="builder-section">{finalDraft.legacyIndicators?.length ? <details><summary>保留的舊草稿指示牌（只供核對）</summary><p>舊版每位玩家的私人指示牌已保留。請明確核對本局共用記錄；不會把舊牌值自動當作已翻開。</p>{finalDraft.legacyIndicators.map((entry, index) => <TileFace key={index} type={entry.tile.type} red={entry.tile.red} />)}</details> : null}<details><summary>本局寶牌與槓寶牌（所有玩家共用）</summary><IndicatorEditor data={data} onChange={onChange} /></details>
+          {!riichi && draft.melds.every((meld) => !meld.open) && <details><summary>實體已立直但忘記錄？</summary><label className="check-line"><input type="checkbox" checked={riichiConfirm} onChange={(event) => setRiichiConfirm(event.target.checked)} />確認本局確有立直、門前清及聽牌；補錄會扣 1,000 至供託</label><button className="secondary-button action-wide" type="button" disabled={!riichiConfirm} onClick={() => { try { onChange(syncMatch(recordAction(data, draft.winner, { kind: 'riichi', confirmed: true }))); setRiichiConfirm(false) } catch (err) { setError(err instanceof Error ? err.message : '未能補錄。') } }}>確認補錄立直</button></details>}
+          {riichi && <><h3>裏寶牌指示牌</h3><p>需要 {effectiveIndicators(data, draft.roundId).length} 個實際指示牌，請依首張、再各槓的有效位置次序輸入。</p>{finalDraft.indicators.filter((item) => item.kind === 'ura').map((entry) => <button className="ura-tile" type="button" key={entry.id} aria-label={`移除裏寶牌 ${tileLabel(entry.tile.type)}`} onClick={() => change({ ...finalDraft, indicators: finalDraft.indicators.filter((item) => item.id !== entry.id) })}><TileFace type={entry.tile.type} red={entry.tile.red} /></button>)}<button className="secondary-button action-wide" type="button" onClick={() => setTarget('ura')}>輸入實際裏寶牌／槓裏指示牌</button></>}
+        </section>}
+        <details className="builder-section"><summary>核對特殊和牌情境</summary><p className="action-note">只勾選實際發生的情境；未勾選不會獲得額外番／役。程式不追蹤每次摸打。</p>{situationLabels.filter(([key]) => draft.variant === 'riichi' ? !['hkHeaven', 'hkEarth', 'hkHuman', 'consecutiveKan'].includes(key) : !['doubleRiichi', 'ippatsu', 'tenhou', 'chiihou'].includes(key)).map(([key, label]) => <label className="check-line" key={key}><input type="checkbox" checked={!!conditions[key]} onChange={(event) => { setConditions({ ...conditions, [key]: event.target.checked }); setDirty(true) }} />{label}</label>)}</details>
+        {draft.variant === 'hong-kong' && data.match?.rules.variant === 'hong-kong' && data.match.rules.payment !== 'custom' && data.match.rules.scoring?.baseUnit === undefined && <label className="action-field">本局未設定零番一份基本金額（整數）<input type="number" min="1" step="1" aria-label="本次港式付款基本單位" value={conditions.hkBaseUnit ?? ''} onChange={(event) => { setConditions({ ...conditions, hkBaseUnit: event.target.value === '' ? undefined : Number(event.target.value) }); setDirty(true) }} /><small>按本局半辣上／辣辣上倍率換算；出銃一家付 {data.match.rules.scoring?.ronMultiplier ?? 2} 份，自摸每家付 {data.match.rules.scoring?.tsumoMultiplier ?? 1} 份。此明確補充會寫入鎖定快照。</small></label>}
+        <label className="check-line"><input type="checkbox" checked={conditions.reviewed} onChange={(event) => conditionChange({ ...conditions, reviewed: event.target.checked })} />已核對和牌方式、和牌張、花牌及所有特殊情境</label>
+        <label className="check-line"><input type="checkbox" checked={conditions.legalWinConfirmed} onChange={(event) => conditionChange({ ...conditions, legalWinConfirmed: event.target.checked })} />{draft.variant === 'riichi' ? '已自行核對振聽、立直及和牌宣告合法性' : '已自行核對過水及食糊宣告合法性'}</label>
+        <label className="check-line"><input type="checkbox" checked={conditions.singleWinner} onChange={(event) => conditionChange({ ...conditions, singleWinner: event.target.checked })} />只有這位贏家，並非多家同時和牌</label>
+        <label className="check-line"><input type="checkbox" checked={conditions.noResponsibility} onChange={(event) => conditionChange({ ...conditions, noResponsibility: event.target.checked })} />沒有包牌／責任支付或其他例外付款</label>
+        {draft.variant === 'riichi' && data.match?.rules.variant === 'riichi' && (['m', 'p', 's'] as const).some((suit) => draft.redFives.perSuit[suit] !== (data.match!.rules as import('../match/rules').JapaneseRiichiRules).redFives[suit]) && <button className="secondary-button action-wide" type="button" onClick={() => change({ ...finalDraft, redFives: { enabled: true, perSuit: structuredClone((data.match!.rules as import('../match/rules').JapaneseRiichiRules).redFives) } }, false)}>套用本局凍結赤五設定，再核對實體牌</button>}
+        {problem && <p className="game-error" role="status">{problem}</p>}
+        <button className="primary-button action-wide" type="button" disabled={!score || storageStatus !== 'saved'} onClick={() => setPreview(true)}>確認手牌</button>
       </>}
-      <section className="builder-section"><h3>食糊／和牌牌張 <small>獨立計算一次</small></h3>
-        {draft.winningTile && <TileRow tiles={[draft.winningTile]} onRemove={() => change({ ...draft, winningTile: null })} />}
-        <button className="secondary-button action-wide" type="button" onClick={() => chooseTarget('winning')}>{draft.winningTile ? '更改贏牌牌張' : '選擇贏牌牌張'}</button>
-      </section>
-      {stage === 'builder' && draft.variant === 'hong-kong' && <section className="builder-section"><h3>花牌 <small>各一張，不計入暗牌</small></h3><div className="flower-palette">{Object.entries(FLOWERS).map(([id, label]) => <button type="button" key={id} aria-label={`花牌 ${label}`} aria-pressed={draft.flowers.includes(id as FlowerType)} onClick={() => change({ ...draft, flowers: draft.flowers.includes(id as FlowerType) ? draft.flowers.filter((item) => item !== id) : [...draft.flowers, id as FlowerType] })}>{label}</button>)}</div></section>}
-      {stage === 'builder' && draft.variant === 'riichi' && <>
-        <details className="builder-section"><summary>赤五家規設定</summary><fieldset disabled={!!frozenRiichiRules(data, draft.roundId)} style={{ border: 0, padding: 0, margin: 0 }}><legend className="sr-only">本局赤五規則</legend><label className="check-line"><input type="checkbox" checked={draft.redFives.enabled} onChange={(event) => change({ ...draft, redFives: { ...draft.redFives, enabled: event.target.checked } })} />使用赤五（與普通五牌共享四張上限）</label>{draft.redFives.enabled && (['m', 'p', 's'] as const).map((suit) => <label className="action-field" key={suit}>{suit === 'm' ? '萬' : suit === 'p' ? '筒' : '索'}赤五數量<select aria-label={`${({ m: '萬', p: '筒', s: '索' })[suit]}赤五設定`} value={draft.redFives.perSuit[suit]} onChange={(event) => change({ ...draft, redFives: { ...draft.redFives, perSuit: { ...draft.redFives.perSuit, [suit]: Number(event.target.value) } } })}>{[0, 1, 2, 3, 4].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>)}</fieldset></details>
-        <section className="builder-section"><h3>寶牌指示牌（牌山實際揭開的牌）</h3><p className="action-note">只輸入實際揭開的牌，並非直接選寶牌。寶牌不等於役，不計番。</p>
-          {kans > 0 && <p>已確認 {kans} 組完成的槓，請核對額外已揭指示牌；未完成／被搶槓不計。</p>}
-          {draft.indicators.map((indicator) => <div className="indicator-card" key={indicator.id}><span>{indicator.kind === 'ura' ? '裏寶牌指示牌' : '寶牌指示牌'}</span><TileFace type={indicator.tile.type} red={indicator.tile.red} /><span>→ 實際寶牌（自動計算）：{tileLabel(getDoraFromIndicator(indicator.tile.type))}</span><button className="text-action" type="button" onClick={() => change({ ...draft, indicators: draft.indicators.filter((item) => item.id !== indicator.id) })}>移除指示牌</button></div>)}
-          <button type="button" className="secondary-button action-wide" disabled={draft.indicators.filter((item) => item.kind === 'dora').length >= 1 + kans} onClick={() => chooseTarget('dora')}>新增寶牌指示牌</button>
-          {uraAllowed && <button type="button" className="secondary-button action-wide" onClick={() => chooseTarget('ura')}>新增裏寶牌指示牌（已手動確認立直）</button>}
-        </section>
-      </>}
-      <section className="builder-section picker-section"><h3>{({ concealed: '加入暗牌', winning: '選擇贏牌牌張', dora: '選擇寶牌指示牌', ura: '選擇裏寶牌指示牌', chi: '選擇順子的起始牌', pon: '選擇碰牌', ankan: '選擇已完成暗槓', daiminkan: '選擇已完成大明槓' })[target]}</h3>
-        {(target === 'ankan' || target === 'daiminkan') && <label className="check-line"><input type="checkbox" checked={kanConfirmed} onChange={(event) => setKanConfirmed(event.target.checked)} />確認這組槓已實際完成；如已立直，已自行核對暗槓限制及聽牌不變</label>}
-        <TilePicker key={target} label="贏牌牌種" sequence={target === 'chi'} redFives={draft.variant === 'riichi' && draft.redFives.enabled && ['concealed', 'winning', 'dora', 'ura'].includes(target)} onPick={pick} />
-      </section>
-      {stage === 'context' ? <button type="button" className="primary-button action-wide" onClick={() => { setStage('builder'); setTarget('concealed') }}>繼續重建贏牌</button> : <p className="hand-count" role="status">邏輯牌：{logicalTileCount(draft)} · 實體牌：{physicalTileCount(draft)}（花牌、指示牌另計）；數量正確不代表合法贏牌。</p>}
-      {showErrors && errors.length > 0 && <ul className="game-error">{errors.map((item) => <li key={item}>{item}</li>)}</ul>}
       {error && <p className="game-error" role="alert">{error}</p>}
-      <div className="builder-save"><button className="secondary-button" type="button" onClick={() => persist(false)}>儲存未完成草稿</button>{stage === 'builder' && <button className="primary-button" type="button" onClick={() => persist(true)}>確認輸入（不計分）</button>}</div>
+      {storageStatus !== 'saved' && <p className="storage-warning">{storageStatus === 'saving' ? '正在儲存；請稍候再鎖定。' : '本機儲存未就緒；可繼續輸入，但暫不能鎖定或結算。'}</p>}
+      <button className="secondary-button action-wide" type="button" onClick={save}>儲存未完成草稿</button>
+      {preview && <Sheet title="確認最後手牌" onClose={() => setPreview(false)}><p>{round.players[draft.winner].nickname} · {draft.win.method === 'tsumo' ? '自摸' : draft.variant === 'riichi' ? '榮和' : '出銃'}{draft.win.sourcePlayer && ` · 來源 ${round.players[draft.win.sourcePlayer].nickname}`}</p><TileRow tiles={draft.concealed} />{draft.winningTile && <div className="winning-tile"><TileFace type={draft.winningTile.type} red={draft.winningTile.red} /><small>和牌張</small></div>}{draft.melds.map((meld) => <article className="meld-card" key={meld.id}><strong>{meld.kind} · {meld.open ? '明' : '暗'}</strong><TileRow tiles={meld.tiles} /></article>)}{draft.flowers.length > 0 && <p>花牌：{draft.flowers.map((flower) => FLOWERS[flower]).join('、')}</p>}{finalDraft.indicators.map((entry) => <div className="indicator-card" key={entry.id}><span>{entry.kind === 'ura' ? '裏寶牌指示牌' : '寶牌指示牌'}</span><TileFace type={entry.tile.type} red={entry.tile.red} /></div>)}<p className="lock-warning">確認後無法返回修改手牌。</p><p>鎖定不會套用付款；下一步仍須核對並確認結算。</p><div className="sheet-buttons"><button className="secondary-button" type="button" onClick={() => setPreview(false)}>返回檢查</button><button className="primary-button" type="button" disabled={!score || storageStatus !== 'saved'} onClick={() => { try { const next = lockWinningHand(data, finalDraft, conditions, true); setLockedId(next.wins!.at(-1)!.id); onChange(next); setPreview(false); setDirty(false) } catch (err) { setPreview(false); setError(err instanceof Error ? err.message : '未能鎖定。') } }}>確認並鎖定</button></div></Sheet>}
     </>}
   </Sheet>
 }

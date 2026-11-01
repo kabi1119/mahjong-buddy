@@ -20,6 +20,7 @@ export function PlayerActions({ data, playerId, onChange, onClose, onEdit, onWin
   const player = round.players[playerId]
   const [step, setStep] = useState<Step>('menu')
   const [tile, setTile] = useState<TileType | null>(null)
+  const [redCount, setRedCount] = useState<number | null>(null)
   const [source, setSource] = useState<PlayerPosition | null>(null)
   const [target, setTarget] = useState('')
   const [confirmed, setConfirmed] = useState(false)
@@ -33,10 +34,11 @@ export function PlayerActions({ data, playerId, onChange, onClose, onEdit, onWin
   const declared = view.riichi.some((item) => item.playerId === playerId)
   const opened = view.melds.some((meld) => meld.playerId === playerId && meld.open)
   const predecessor = precedingPlayer(playerId)
-  const choose = (next: Step) => { setStep(next); setError(''); setConfirmed(false); setTile(null); setSource(next === 'chi' && round.variant === 'riichi' ? predecessor : null); setCorrecting(null); setKanStatus('completed') }
-  const selectPon = (id: string) => { const pon = candidates.find((item) => item.id === id)!; setTarget(id); setTile(pon.tile); setConfirmed(false); setStep('shouminkan') }
+  const choose = (next: Step) => { setStep(next); setError(''); setConfirmed(false); setTile(null); setRedCount(null); setSource(next === 'chi' && round.variant === 'riichi' ? predecessor : null); setCorrecting(null); setKanStatus('completed') }
+  const selectPon = (id: string) => { const pon = candidates.find((item) => item.id === id)!; setTarget(id); setRedCount(null); setTile(pon.tile); setConfirmed(false); setStep('shouminkan') }
   function editAction(action: PlayerAction) {
     setCorrecting(action); setStep(action.kind); setTile(action.kind === 'riichi' ? null : action.tile)
+    setRedCount('redCount' in action ? action.redCount ?? null : null)
     setSource('sourcePlayer' in action ? action.sourcePlayer : null)
     setTarget(action.kind === 'shouminkan' ? action.targetMeldId : '')
     setKanStatus('kanStatus' in action ? action.kanStatus : 'completed'); setConfirmed(false); setError('')
@@ -48,6 +50,7 @@ export function PlayerActions({ data, playerId, onChange, onClose, onEdit, onWin
       else if (step === 'shouminkan' && tile) input = { kind: 'shouminkan', tile, meldId: target, targetMeldId: target, physicalConfirmed: confirmed, kanStatus }
       else if (['chi', 'pon', 'ankan', 'daiminkan'].includes(step) && tile) input = { kind: step as 'chi' | 'pon' | 'ankan' | 'daiminkan', tile, meldId: correcting && 'meldId' in correcting ? correcting.meldId : newId(), sourcePlayer: step === 'ankan' ? null : source, kanStatus, riichiAnkanConfirmed: step === 'ankan' && declared ? confirmed : false }
       else throw new Error('請先選擇牌種。')
+      if (input.kind !== 'riichi') input = { ...input, redCount: tile && /^5[mps]$/.test(tile) && round.variant === 'riichi' ? redCount ?? undefined : undefined }
       onChange(syncMatch(correcting ? correctAction(data, correcting.id, input) : recordAction(data, playerId, input)))
       onClose()
     } catch (err) { setError(err instanceof Error ? err.message : '未能儲存記錄。') }
@@ -63,7 +66,7 @@ export function PlayerActions({ data, playerId, onChange, onClose, onEdit, onWin
         {round.variant === 'riichi' && <button type="button" onClick={() => choose('riichi')}>立直</button>}
         <button className="primary-button" type="button" onClick={onWin}>{round.variant === 'hong-kong' ? '食糊' : '和牌'}</button>
       </div>
-      <p className="action-note">記錄實體動作；日本四麻確認立直會扣除 1,000 點至供託。和牌計分尚未支援。</p>
+      <p className="action-note">記錄實體動作；日本四麻確認立直會扣除 1,000 點至供託。和牌後可重建手牌並核對計分及結算。</p>
       <details className="action-history"><summary>動作記錄與更正</summary>
         <ol>{data.actions.filter((action) => action.roundId === round.id && action.playerId === playerId).map((action) => <li key={action.id}>
           <span>{ACTION_LABELS[action.kind]}{'tile' in action && ` · ${tileLabel(action.tile)}`} · {action.status === 'undone' ? '已撤回' : 'kanStatus' in action && action.kanStatus === 'robbed' ? '未完成／被搶槓' : '已記錄'}{action.revision > 0 && ' · 已更正'}</span>
@@ -84,7 +87,7 @@ export function PlayerActions({ data, playerId, onChange, onClose, onEdit, onWin
         : step === 'chi' ? <SmartChi sourceName={round.players[predecessor].nickname} redAllowed={round.variant === 'riichi' && (data.match?.rules.variant !== 'riichi' || Object.values(data.match.rules.redFives).some((n) => n > 0))} onSave={(tiles, claimed, redIndex) => {
           try {
             if (redIndex !== null && data.match?.rules.variant === 'riichi' && data.match.rules.redFives[tiles[redIndex][1] as 'm' | 'p' | 's'] === 0) throw new Error('此花色未啟用赤五。')
-            const input: ActionInput = { kind: 'chi', tile: tiles[0], meldId: correcting && 'meldId' in correcting ? correcting.meldId : newId(), sourcePlayer: predecessor, claimedTile: claimed, suppliedTiles: tiles.filter((type) => type !== claimed), chiRedIndex: redIndex, physicalConfirmed: true, riichiAnkanConfirmed: false, kanStatus: 'completed' }
+            const input: ActionInput = { kind: 'chi', redCount: undefined, tile: tiles[0], meldId: correcting && 'meldId' in correcting ? correcting.meldId : newId(), sourcePlayer: predecessor, claimedTile: claimed, suppliedTiles: tiles.filter((type) => type !== claimed), chiRedIndex: redIndex, physicalConfirmed: true, riichiAnkanConfirmed: false, kanStatus: 'completed' }
             onChange(syncMatch(correcting ? correctAction(data, correcting.id, input) : recordAction(data, playerId, input))); onClose()
           } catch (err) { setError(err instanceof Error ? err.message : '未能記錄順子。') }
         }} /> : step === 'riichi' ? <>
@@ -94,9 +97,10 @@ export function PlayerActions({ data, playerId, onChange, onClose, onEdit, onWin
           <button type="button" className="primary-button action-wide" disabled={!confirmed || opened || declared} onClick={commit}>確認立直記錄</button>
         </> : <>
           <h3>{step === 'pon' ? '碰咗邊隻牌？' : `${ACTION_LABELS[step as keyof typeof ACTION_LABELS]}：選擇同牌`}</h3>
-          {step !== 'shouminkan' && <TilePicker label="動作牌種" onPick={(type) => setTile(type)} />}
+          {step !== 'shouminkan' && <TilePicker label="動作牌種" onPick={(type) => { setTile(type); setRedCount(null) }} />}
           {tile && <p className="chosen-tile"><TileFace type={tile} /><strong>{tileLabel(tile)}{step === 'pon' ? ' × 3' : ' × 4'}</strong></p>}
           {(step === 'pon' || step === 'daiminkan') && <label className="action-field">來源玩家（如知道）<select aria-label="來源玩家" value={source ?? ''} onChange={(event) => setSource((event.target.value || null) as PlayerPosition | null)}><option value="">未記錄</option>{POSITIONS.filter((seat) => seat !== playerId).map((seat) => <option key={seat} value={seat}>{round.players[seat].nickname}</option>)}</select></label>}
+          {round.variant === 'riichi' && tile && /^5[mps]$/.test(tile) && <label className="action-field">實體赤五數量<select aria-label="動作赤五數量" value={redCount ?? ''} onChange={(event) => setRedCount(event.target.value === '' ? null : Number(event.target.value))}><option value="">稍後核對</option>{Array.from({ length: step === 'pon' ? 4 : 5 }, (_, count) => <option key={count} value={count}>{count}</option>)}</select></label>}
           {isKan && <>
             <label className="check-line"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />{step === 'shouminkan' ? '確認已實際取得第四張相同牌，可加到這組碰' : step === 'ankan' && declared ? '我已自行核對立直後暗槓限制及實體四張同牌' : '我已自行核對四張同牌及此槓的實體條件'}</label>
             <label className="action-field">槓的狀態<select aria-label="槓的狀態" value={kanStatus} onChange={(event) => setKanStatus(event.target.value as 'completed' | 'robbed')}><option value="completed">已完成</option><option value="robbed">未完成／被搶槓</option></select></label>
