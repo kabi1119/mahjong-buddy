@@ -26,7 +26,7 @@ export function validateRules(rules: MatchRules): string[] {
       if (![8, 10, 'cap'].includes(hk.kankan) || typeof hk.sevenPairs !== 'boolean' || (hk.baseUnit !== undefined && (!Number.isSafeInteger(hk.baseUnit) || hk.baseUnit <= 0)) || ![hk.ronMultiplier, hk.tsumoMultiplier].every((amount) => Number.isSafeInteger(amount) && amount > 0)) return ['港式計分設定無效。']
     } else {
       const jp = rules.scoring as RiichiScoreRules
-      if (![jp.kiriage, jp.doubleYakuman, jp.stackYakuman, jp.openTanyao].every((flag) => typeof flag === 'boolean') || !['yakuman', 'sanbaiman'].includes(jp.kazoe) || ![2, 4].includes(jp.doubleWindPair) || !['immediate', 'ankan-immediate-open-after-discard'].includes(jp.kanReveal)) return ['日本計分設定無效。']
+      if (![jp.kiriage, jp.doubleYakuman, jp.stackYakuman, jp.openTanyao].every((flag) => typeof flag === 'boolean') || !['yakuman', 'sanbaiman', 'uncapped'].includes(jp.kazoe) || ![2, 4].includes(jp.doubleWindPair) || !['immediate', 'ankan-immediate-open-after-discard'].includes(jp.kanReveal)) return ['日本計分設定無效。']
     }
   }
   if (rules.variant === 'hong-kong') {

@@ -4,7 +4,7 @@ import type { Points } from '../match/models'
 import type { PlayerPosition } from '../../types/mahjong'
 import type { TileInstance } from '../hands/tiles'
 export interface RiichiScoreRules {
-  version: 1; kiriage: boolean; kazoe: 'yakuman' | 'sanbaiman'; doubleYakuman: boolean; stackYakuman: boolean
+  version: 1; kiriage: boolean; kazoe: 'yakuman' | 'sanbaiman' | 'uncapped'; doubleYakuman: boolean; stackYakuman: boolean
   doubleWindPair: 2 | 4; openTanyao: boolean; kanReveal: 'immediate' | 'ankan-immediate-open-after-discard'
 }
 export interface HKScoreRules {

@@ -8,7 +8,12 @@ import type { FuComponent, RiichiScoreRules, ScoreComponent, WinConditions } fro
 export interface HandValue { bonuses: { dora: number; kanDora: number; ura: number; kanUra: number; redDora: number }; components: ScoreComponent[]; fuBreakdown: FuComponent[]; han: number; fu: number; yakuman: number; basePoints: number; label: string; tier: number; interpretation: string }
 export function riichiLimit(han: number, fu: number, yakuman: number, rules: RiichiScoreRules) {
   if (yakuman) return { basePoints: 8000 * yakuman, label: yakuman === 1 ? '役滿' : ['雙倍役滿', '三倍役滿', '四倍役滿'][yakuman - 2] ?? `${yakuman} 倍役滿`, tier: Math.min(8, 4 + yakuman) }
-  if (han >= 13) return rules.kazoe === 'yakuman' ? { basePoints: 8000, label: '累計役滿', tier: 5 } : { basePoints: 6000, label: '三倍滿（累計上限）', tier: 4 }
+  if (han >= 13) {
+    if (rules.kazoe === 'sanbaiman') return { basePoints: 6000, label: '三倍滿（累計上限）', tier: 4 }
+    const multiple = rules.kazoe === 'uncapped' ? Math.floor(han / 13) : 1
+    const label = ['累計役滿', '累計雙倍役滿', '累計三倍役滿', '累計四倍役滿'][multiple - 1] ?? '累計' + multiple + ' 倍役滿'
+    return { basePoints: 8000 * multiple, label, tier: Math.min(8, 4 + multiple) }
+  }
   if (han >= 11) return { basePoints: 6000, label: '三倍滿', tier: 4 }
   if (han >= 8) return { basePoints: 4000, label: '倍滿', tier: 3 }
   if (han >= 6) return { basePoints: 3000, label: '跳滿', tier: 2 }

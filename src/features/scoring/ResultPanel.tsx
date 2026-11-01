@@ -77,7 +77,7 @@ export function ResultPanel({ settings, win, onUpdate, onClose, storageStatus }:
     {win.draft.win.sourcePlayer && <p>來源：{round.players[win.draft.win.sourcePlayer].nickname}</p>}
     <p role="status">{archivedLock ? '已封存的鎖定手牌，沒有支付；不可在新局套用' : win.status === 'locked' ? '手牌已鎖定 · 以下為結算預覽，尚未支付' : win.status === 'reversed' ? '此結算已經審計撤銷；原快照保留' : '結算已儲存 · 動畫不會重複支付'}</p>
     <VictoryReveal key={`reveal:${win.id}:${win.status}:${replay}`} score={win.score} reduced={reduced} />
-    <p className="score-total">{win.score.variant === 'hong-kong' ? `${win.score.fan} 番（原始 ${win.score.rawFan} 番）` : win.score.yakuman ? `${win.score.yakuman} 倍真正役滿` : `${win.score.han} 飜 ${win.score.fu} 符`}</p>
+    <p className="score-total">{win.score.variant === 'hong-kong' ? `${win.score.fan} 番（原始 ${win.score.rawFan} 番）` : win.score.yakuman ? `${win.score.yakuman} 倍真正役滿` : win.score.han >= 13 ? `${win.score.han} 飜` : `${win.score.han} 飜 ${win.score.fu} 符`}</p>
     <h3>完整手牌</h3><TileRow tiles={win.draft.concealed} />{win.draft.winningTile && <div className="winning-tile"><TileFace type={win.draft.winningTile.type} red={win.draft.winningTile.red} /><small>和牌張</small></div>}
     {win.draft.melds.map((meld) => <article className="meld-card" key={meld.id}><small>{meld.kind === 'chi' ? '順子' : meld.kind === 'pon' ? '碰' : meld.kind === 'ankan' ? '暗槓' : meld.kind === 'shouminkan' ? '加槓' : '大明槓'} · {meld.open ? '明' : '暗'}</small><TileRow tiles={meld.tiles} /></article>)}
     {win.draft.flowers.length > 0 && <p>花牌：{win.draft.flowers.map((flower) => FLOWERS[flower]).join('、')}</p>}

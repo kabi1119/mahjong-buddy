@@ -104,6 +104,20 @@ Base = Fu × 2^(Han+2), capped as appropriate: Mangan 2,000; Haneman 3,000; Baim
 
 Casual scoring defaults: Kiriage off; Kazoe Yakuman for 13+ Han; double-Yakuman variants off; genuine Yakuman stacking on; open Tanyao on; double-wind pair 4 Fu. Optional doubles apply to thirteen-sided Kokushi, Suuankou Tanki, Daisuushii and pure Nine Gates. Disabling stacking keeps the highest individual applicable Yakuman value. Kazoe is never added as another genuine Yakuman condition. WRC conventions differ, including Kiriage, counted limits and double-wind pairs; choose rules explicitly.
 
+### RC5 Kazoe policies
+
+The default and existing saved policy values are unchanged. Select one before starting a new match; active-match snapshots remain frozen.
+
+| Policy | 13+ Han base points |
+| --- | --- |
+| 單倍累計役滿（預設）, saved as yakuman | 8,000, including 26+ Han |
+| 三倍滿封頂, saved as sanbaiman | 6,000 |
+| 無封頂累計役滿, saved as uncapped | floor(Han / 13) × 8,000 |
+
+Uncapped Kazoe is an optional house rule, not universal Riichi practice. Its ranges are 13–25 = 1×, 26–38 = 2×, 39–51 = 3×, 52–64 = 4×, continuing without an arbitrary scoring ceiling. A genuine non-Dora Yaku is still required. Genuine Yakuman are evaluated independently and never added to counted multiples.
+
+Counted results show 累計役滿／累計雙倍役滿／累計三倍役滿／累計四倍役滿, numeric multiples above four, and actual Han. Detailed Yaku, bonus and Fu breakdowns remain available. The existing genuine 1×/2×/3×/4×+ effects are reused; only visual intensity saturates at tier 8. Scoring uses base points rather than animation text. Existing dealer/Ron/Tsumo multipliers, Honba and deposit awards are unchanged; replay never pays. IndexedDB identifiers and storage schemas are unchanged, and legacy preferences/locked snapshots remain readable.
+
 ### Shared indicators and timing
 
 New Riichi hands remain in preparation until the first actual revealed indicator is confirmed. Dora advances suit ranks cyclically, winds East/South/West/North, dragons White/Green/Red. Initial and Kan indicators belong to the physical round, not a winner. Duplicate positions are disallowed; repeated tile values at different physical positions are valid and each contributes its bonus.
