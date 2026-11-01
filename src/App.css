@@ -617,6 +617,85 @@ h2  {
   color:#65725f;
 }
 
+.remove-player {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #944b3d;
+  font-size: 13px;
+}
+
+.app-footer .storage-warning {
+  color: #944b3d;
+  font-size: 11px;
+}
+
+.mode:disabled, .player-seat:disabled {
+  opacity: .65;
+}
+
+/* Enlarge the same single-column app, without viewport-height filler. */
+@media (min-width: 900px) {
+  .app-shell {
+    max-width: 560px;
+    min-height: auto;
+    padding-inline: max(28px, env(safe-area-inset-left)) max(28px, env(safe-area-inset-right));
+  }
+  .player-dialog {
+    max-width: 560px;
+  }
+  .seat-avatar {
+    width: 62px;
+    height: 62px;
+    font-size: 35px;
+  }
+  .occupied .seat-avatar {
+    font-size: 36px;
+  }
+  .seat-name {
+    font-size: 14px;
+    margin-top: 8px;
+  }
+  .seat-label {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+  .center-tiles {
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .center-tiles i {
+    width: 25px;
+    height: 32px;
+    font-size: 20px;
+  }
+  .table-center strong {
+    font-size: 17px;
+  }
+  .waiting-status {
+    font-size: 12px;
+  }
+  .round-placeholder {
+    font-size: 11px;
+    margin-top: 12px;
+    padding-top: 9px;
+  }
+  .mode {
+    font-size: 16px;
+    min-height: 50px;
+  }
+  .table-hint, .mode-caption {
+    font-size: 12px;
+  }
+  .upcoming-features > div, .preparation > p, .app-footer {
+    font-size: 12px;
+  }
+}
+
 @media (max-width:350px)  {
   .app-shell  {
     padding-inline:max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right));
