@@ -1,3 +1,5 @@
+import { decodePreferences } from '../features/match/rules'
+import type { RulePreferences, ThemePreference } from '../features/match/rules'
 import { activeRound, archiveRound } from '../features/actions/engine'
 import { decodeGameplay } from '../features/actions/storage'
 import type { GameplayData } from '../features/actions/models'
@@ -11,6 +13,8 @@ export interface Settings {
   players: Partial<Record<PlayerPosition, Player>>
   setup?: GameSetup
   gameplay?: GameplayData
+  preferences?: RulePreferences
+  themePreference?: ThemePreference
 }
 
 // Database version tracks object-store migrations; schemaVersion tracks record migrations.
@@ -33,6 +37,10 @@ export function decodeSettings(value: unknown): Settings {
   if (!isRecord(value)) return settings
   // Never overwrite a record produced by a newer app with an older schema.
   if (value.schemaVersion !== 1) throw new Error('Unsupported settings schema')
+  if (isRecord(value.setup) && value.setup.version !== 1) throw new Error('Unsupported setup schema')
+  const preferences = decodePreferences(value.preferences)
+  if (preferences) settings.preferences = preferences
+  if (value.themePreference !== undefined) { if (!['system', 'light', 'dark'].includes(String(value.themePreference))) throw new Error('未知主題偏好。'); settings.themePreference = value.themePreference as ThemePreference }
   const gameplay = decodeGameplay(value.gameplay)
   if (gameplay) settings.gameplay = gameplay
   const variant = VARIANTS.find((item) => item.id === value.variant)
@@ -51,7 +59,7 @@ export function decodeSettings(value: unknown): Settings {
     if (setup) settings.setup = setup
   }
   const currentRound = activeRound(settings.gameplay)
-  if (currentRound && (currentRound.variant !== settings.variant || settings.setup?.phase !== 'playing' || currentRound.dealer !== settings.setup.dealer)) settings.gameplay = archiveRound(settings.gameplay!)
+  if (currentRound && (currentRound.variant !== settings.variant || (settings.setup?.phase !== 'playing' && !['between', 'preparing', 'end-decision'].includes(settings.gameplay?.match?.phase ?? '')) || currentRound.dealer !== settings.setup.dealer)) settings.gameplay = archiveRound(settings.gameplay!)
   return settings
 }
 
@@ -64,7 +72,9 @@ function encodeSettings(settings: Settings) {
   }
   return { schemaVersion: 1, variant: settings.variant, players,
     ...(settings.setup ? { setup: settings.setup } : {}),
-    ...(settings.gameplay ? { gameplay: settings.gameplay } : {}) }
+    ...(settings.gameplay ? { gameplay: settings.gameplay } : {}),
+    ...(settings.preferences ? { preferences: settings.preferences } : {}),
+    ...(settings.themePreference ? { themePreference: settings.themePreference } : {}) }
 }
 
 function openDatabase(): Promise<IDBDatabase> {

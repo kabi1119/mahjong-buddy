@@ -1,7 +1,7 @@
 // Future modes reserve artwork only; only VARIANTS can be selected or persisted.
 export const MODE_CATALOG = {
   'hong-kong': { id: 'hong-kong', label: '香港麻雀', wind: '東', icon: '/icons/wind-east.svg', available: true },
-  riichi: { id: 'riichi', label: '日本麻雀', wind: '南', icon: '/icons/wind-south.svg', available: true },
+  riichi: { id: 'riichi', label: '日本四麻', wind: '南', icon: '/icons/wind-south.svg', available: true },
   sanma: { id: 'sanma', label: '日本三麻', wind: '西', icon: '/icons/wind-west.svg', available: false },
   taiwanese: { id: 'taiwanese', label: '台灣麻將', wind: '北', icon: '/icons/wind-north.svg', available: false },
 } as const

@@ -19,12 +19,12 @@ export function TileFace({ type, red = false }: { type: TileType; red?: boolean 
     {red && <circle cx="33" cy="46" r="2" fill="#b34839" />}
   </svg>
 }
-export function TilePicker({ label, onPick, redFives = false, sequence = false }: { label: string; onPick: (tile: TileType, red: boolean) => void; redFives?: boolean; sequence?: boolean }) {
+export function TilePicker({ label, onPick, redFives = false, sequence = false, numberedOnly = false }: { label: string; onPick: (tile: TileType, red: boolean) => void; redFives?: boolean; sequence?: boolean; numberedOnly?: boolean }) {
   const [group, setGroup] = useState('m')
   const tiles = TILE_CATALOG.filter((tile) => group === 'honors' ? HONORS.includes(tile as typeof HONORS[number]) : tile.endsWith(group))
     .filter((tile) => !sequence || /^[1-7][mps]$/.test(tile))
   return <section className="tile-picker" aria-label={label}>
-    <div className="tile-tabs" role="group" aria-label="牌種分類">{[['m', '萬'], ['p', '筒'], ['s', '索'], ...(!sequence ? [['honors', '字牌']] : [])].map(([id, text]) => <button type="button" key={id} aria-pressed={group === id} onClick={() => setGroup(id)}>{text}</button>)}</div>
+    <div className="tile-tabs" role="group" aria-label="牌種分類">{[['m', '萬'], ['p', '筒'], ['s', '索'], ...(!sequence && !numberedOnly ? [['honors', '字牌']] : [])].map(([id, text]) => <button type="button" key={id} aria-pressed={group === id} onClick={() => setGroup(id)}>{text}</button>)}</div>
     <div className="tile-palette">{tiles.map((type) => <button type="button" key={type} aria-label={`${sequence ? '順子起始牌：' : ''}${tileLabel(type)}`} onClick={() => onPick(type, false)}><TileFace type={type} /><span>{tileLabel(type)}</span></button>)}
       {redFives && tiles.filter(isFive).map((type) => <button type="button" key={`red-${type}`} aria-label={tileLabel(type, true)} onClick={() => onPick(type, true)}><TileFace type={type} red /><span>{tileLabel(type, true)}</span></button>)}
     </div>

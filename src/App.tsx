@@ -1,3 +1,8 @@
+import { MatchSettings } from './features/match/MatchSettings'
+import { MatchFlow } from './features/match/MatchFlow'
+import type { MatchView } from './features/match/MatchFlow'
+import { useTheme } from './features/match/useTheme'
+import { resetMatch, roundLabel } from './features/match/engine'
 import { PlayerActions } from './features/actions/PlayerActions'
 import { WinFlow } from './features/hands/WinFlow'
 import { activeRound, projectRound } from './features/actions/engine'
@@ -6,18 +11,27 @@ import './features/hands/hands.css'
 import { useState } from 'react'
 import { PlayerEditor } from './features/players/PlayerEditor'
 import { MahjongTable } from './features/table/MahjongTable'
-import { POSITIONS, VARIANTS } from './types/mahjong'
+import { POSITIONS, MODE_CATALOG } from './types/mahjong'
 import type { PlayerPosition } from './types/mahjong'
 import { useSettings } from './storage/useSettings'
 import { version } from '../package.json'
 import { GameControls } from './features/game/GameControls'
 import { diceCountFor, newSetup, updateSetup } from './features/game/setup'
 import type { SetupAction } from './features/game/setup'
-import { assignSeatWinds } from './features/game/rules'
 import './App.css'
+import './themes.css'
 
 function App() {
-  const { settings: { variant, players, setup: savedSetup, gameplay }, status, updateSettings } = useSettings()
+  const { settings, status, updateSettings } = useSettings()
+  const { variant, players, setup: savedSetup, gameplay } = settings
+  const theme = useTheme(settings.themePreference, status !== 'loading')
+  const [rulesOpen, setRulesOpen] = useState(false)
+  const [matchView, setMatchView] = useState<MatchView | null>(null)
+  const [dismissedFour, setDismissedFour] = useState('')
+  const match = gameplay?.match
+  const pendingFour = match?.pendingFourKan
+  const autoFour = pendingFour?.status === 'pending' && pendingFour.signature !== dismissedFour && !match?.winPending
+
   const [editing, setEditing] = useState<PlayerPosition | null>(null)
   const [actionPlayer, setActionPlayer] = useState<PlayerPosition | null>(null)
   const [winPlayer, setWinPlayer] = useState<PlayerPosition | null>(null)
@@ -31,14 +45,13 @@ function App() {
   const pickingDealer = complete && setup.phase === 'selecting-dealer' && !editingPlayers
   const dispatch = (action: SetupAction) => updateSettings((current) => ({ ...current, setup: updateSetup(current.setup ?? newSetup(), action) }))
   const dealerName = setup.dealer ? players[setup.dealer]?.nickname : ''
-  const turnWind = setup.dealer && setup.turn ? assignSeatWinds(setup.dealer)[setup.turn] : ''
   const context = !complete ? `點選座位加入牌友（${playerCount}/4）`
     : editingPlayers && setup.phase === 'selecting-dealer' ? '點選座位編輯牌友，再返回選莊'
     : setup.phase === 'selecting-dealer' ? setup.dealer ? `已選 ${dealerName} 為莊，可點選另一位更改` : '點選牌友選莊，再確認開局'
     : rolling ? '正在擲骰，請稍候…'
     : setup.phase === 'ready-to-roll' ? `${dealerName} 做莊 · ${diceCountFor(variant, setup)} 粒骰子，準備開門`
     : setup.phase === 'wall-guide' ? `${setup.dice?.reduce((sum, die) => sum + die, 0)} 點 · 按指引配牌，完成後確認`
-    : `手動：${players[setup.turn!]?.nickname}（${turnWind}）行牌 · 點牌友記錄動作`
+    : '點牌友記錄動作 · 點局名查看摘要'
 
   return (
     <main className="app-shell">
@@ -47,15 +60,15 @@ function App() {
           <img className="brand-logo" src="/mahjong.svg" alt="" width="44" height="44" />
           <span>麻雀小夥伴<small>MAHJONG BUDDY</small></span>
         </a>
-        <span className="edition">v{version.replace(/-([a-z])$/, '$1')}</span>
+        <div className="header-tools"><button className="theme-switch" type="button" role="switch" aria-label="深色模式" aria-checked={theme === 'dark'} disabled={status === 'loading'} onClick={() => updateSettings((current) => ({ ...current, themePreference: theme === 'dark' ? 'light' : 'dark' }))}><span aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span></button><span className="edition">v{version.replace('-rc.', 'rc')}</span></div>
       </header>
       <div className="mode-selector" role="group" aria-label="麻雀模式">
-        {VARIANTS.map((mode) => (
-          <button key={mode.id} type="button" disabled={status === 'loading' || rolling}
+        {Object.values(MODE_CATALOG).map((mode) => (
+          <button key={mode.id} type="button" disabled={!mode.available || status === 'loading' || rolling}
             aria-pressed={variant === mode.id} className={variant === mode.id ? 'mode active' : 'mode'}
-            onClick={() => updateSettings((current) => ({ ...current, variant: mode.id }))}>
+            onClick={() => { if (mode.available) updateSettings((current) => ({ ...current, variant: mode.id })) }}>
             <img className="mode-tile" src={mode.icon} alt="" aria-hidden="true" width="24" height="30" />
-            {mode.label}
+            <span className="mode-label">{mode.label}<small>{!mode.available ? <>Coming soon<br />敬請期待</> : <>&nbsp;<br />&nbsp;</>}</small></span>
           </button>
         ))}
       </div>
@@ -64,20 +77,29 @@ function App() {
           <div><p className="eyebrow">LET’S PLAY</p><h1 id="table-heading">齊人，開枱。</h1></div>
           <span className="table-variant">{variant === 'hong-kong' ? '港式四人' : '四人立直'}</span>
         </div>
-        <MahjongTable players={players} variant={variant} setup={setup} pickingDealer={pickingDealer} riichiSeats={riichiSeats}
-          onEdit={(position) => { if (pickingDealer) dispatch({ type: 'dealer', position }); else if (setup.phase === 'playing') { if (!round) updateSettings(withActiveRound); setActionPlayer(position) } else setEditing(position) }}
+        <MahjongTable players={players} variant={variant} setup={setup} pickingDealer={pickingDealer} riichiSeats={riichiSeats} roundText={roundLabel(match, variant)} honba={match?.honba}
+          between={!!match && match.phase !== 'playing' && match.phase !== 'preparing'}
+          onSettings={() => setRulesOpen(true)} onSummary={match ? () => setMatchView('summary') : undefined}
+          onDraw={() => { if (!match) updateSettings(withActiveRound); setMatchView('draw') }}
+          onEdit={(position) => { if (pickingDealer) dispatch({ type: 'dealer', position }); else if (setup.phase === 'playing') { if (!round || !match) updateSettings(withActiveRound); setActionPlayer(position) } else setEditing(position) }}
           disabled={status === 'loading' || rolling} />
         <p className="table-hint" aria-live="polite">{context}</p>
       </section>
-      <GameControls key={variant} variant={variant} players={players} setup={setup}
+      {pendingFour && pendingFour.status !== 'win-pending' && setup.phase === 'playing' && <button className="four-kan-notice secondary-button" type="button" onClick={() => setMatchView('four-kan')}>四槓散了條件 · 核對第四槓結果</button>}
+      {match && ['between', 'end-decision', 'ended'].includes(match.phase) ? <button className="secondary-button" type="button" onClick={() => setMatchView('summary')}>查看流局結果及準備下一局</button> : <GameControls key={variant} variant={variant} players={players} setup={setup}
         disabled={status === 'loading'} onAction={dispatch} onBusyChange={setRolling}
         onSelectDealer={() => setEditingPlayers(false)} editingPlayers={editingPlayers}
-        onEditPlayers={() => setEditingPlayers((value) => !value)} />
+        onEditPlayers={() => setEditingPlayers((value) => !value)} fixedDealer={!!match}
+        onReset={(clear) => { updateSettings((current) => resetMatch(current, clear)); setEditingPlayers(false) }} />}
+      {match?.phase === 'ended' && <button className="secondary-button" type="button" onClick={() => updateSettings((current) => resetMatch(current, false))}>開始新牌局（保留牌友）</button>}
       <footer className="app-footer">
         <span role="status" className={status === 'error' || status === 'unavailable' ? 'storage-warning' : 'storage-status'}>
           {status === 'loading' ? '正在讀取本機設定…' : status === 'saving' ? '正在儲存設定…' : status === 'saved' ? '設定已於此瀏覽器自動儲存' : status === 'unavailable' ? '無法讀取本機設定；本次變更只保留至重新整理，未覆寫原有資料。' : '未能儲存最新設定；請保留此頁面，下次確認變更時會再嘗試。'}
         </span>
+        <p>朋友測試版 · 尚未支援和牌計分<br />資料只存於此瀏覽器／裝置，不會同步；清除瀏覽資料可能移除記錄。 <a href="https://github.com/kabi1119/mahjong-buddy/issues" target="_blank" rel="noreferrer">回報問題</a></p>
       </footer>
+      {rulesOpen && <MatchSettings settings={settings} onSave={updateSettings} onClose={() => setRulesOpen(false)} />}
+      {match && !rulesOpen && !actionPlayer && !winPlayer && (matchView || autoFour) && <MatchFlow key={match.roundId + (matchView ?? 'auto')} settings={settings} view={matchView ?? (autoFour ? 'four-kan' : 'summary')} onUpdate={updateSettings} onClose={() => { setMatchView(null); if (pendingFour) setDismissedFour(pendingFour.signature) }} onRules={() => { setMatchView(null); setRulesOpen(true) }} onWin={setWinPlayer} />}
       {actionPlayer && round && gameplay && setup.phase === 'playing' && <PlayerActions data={gameplay} playerId={actionPlayer}
         onChange={(data) => updateSettings((current) => ({ ...current, gameplay: data }))}
         onClose={() => setActionPlayer(null)} onEdit={() => { setEditing(actionPlayer); setActionPlayer(null) }}

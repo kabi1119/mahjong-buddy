@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Sheet } from '../../components/Sheet'
 import { POSITIONS } from '../../types/mahjong'
 import type { MahjongVariant, Player, PlayerPosition } from '../../types/mahjong'
 import { assignSeatWinds, calculateWallBreak, generateDiceResults, randomIndex } from './rules'
@@ -16,9 +17,12 @@ interface Props {
   onSelectDealer: () => void
   editingPlayers: boolean
   onEditPlayers: () => void
+  onReset?: (clearPlayers: boolean) => void
+  fixedDealer?: boolean
 }
 
-export function GameControls({ variant, players, setup, disabled, onAction, onBusyChange, onSelectDealer, editingPlayers, onEditPlayers }: Props) {
+export function GameControls({ variant, players, setup, disabled, onAction, onBusyChange, onSelectDealer, editingPlayers, onEditPlayers, onReset, fixedDealer }: Props) {
+  const [resetting, setResetting] = useState(false)
   const [rolling, setRolling] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
   const [error, setError] = useState('')
@@ -49,14 +53,16 @@ export function GameControls({ variant, players, setup, disabled, onAction, onBu
     else timer.current = setTimeout(finish, 450)
   }
 
-  if (!complete) return null // The table's single contextual instruction guides adding players.
+  const resetDialog = resetting && <Sheet title={setup.phase === 'playing' ? '確定要重設開局？' : '清除牌友並重設？'} onClose={() => setResetting(false)}><p>{setup.phase === 'playing' ? '保留玩家名稱及頭像；重設莊家、骰子與本局進度。現有動作會封存，草稿及歷史記錄保留。' : '移除目前牌友並返回加入玩家畫面。全域規則偏好、草稿及歷史記錄保留。'}</p><div className="sheet-buttons"><button className="secondary-button" type="button" onClick={() => setResetting(false)}>取消</button><button className="primary-button" type="button" onClick={() => { onReset?.(setup.phase !== 'playing'); setResetting(false) }}>{setup.phase === 'playing' ? '確認重設' : '確認清除'}</button></div></Sheet>
+  if (setup.phase === 'playing') return <section className="game-controls"><button type="button" className="secondary-button action-wide" onClick={() => setResetting(true)}>重設開局（保留牌友）</button>{resetDialog}</section>
+  if (!complete) return null
   const result = setup.dice && setup.dealer ? calculateWallBreak(variant, setup.dice.reduce((sum, die) => sum + die, 0), setup.dealer) : null
   const label = (position: PlayerPosition) => `${players[position]?.nickname}（${winds?.[position]}）`
   const changeDealer = () => { onAction({ type: 'change-dealer' }); setGuideOpen(false); onSelectDealer() }
   const confirmDealt = () => { onAction({ type: 'dealt' }); setGuideOpen(false) }
 
   return <section className="preparation game-controls" aria-labelledby="preparation-heading" aria-busy={rolling}>
-    <h2 id="preparation-heading" className="sr-only">{setup.phase === 'playing' ? '手動行牌提示' : '開局準備'}</h2>
+    <h2 id="preparation-heading" className="sr-only">{'開局準備'}</h2>
     <div className="primary-controls">
       <div className="game-actions">
         {setup.phase === 'selecting-dealer' ? <>
@@ -65,9 +71,7 @@ export function GameControls({ variant, players, setup, disabled, onAction, onBu
             catch { setError('未能隨機選莊，請點選玩家。') }
           }}>隨機選莊</button>
           <button type="button" className="primary-button" disabled={disabled || !setup.dealer} onClick={() => { onAction({ type: 'confirm-dealer' }); onSelectDealer() }}>確認莊家</button>
-        </> : setup.phase === 'playing' ?
-          <button type="button" className="primary-button" disabled={rolling} onClick={() => onAction({ type: 'next-turn' })}>下一家</button>
-          : setup.phase === 'wall-guide' ? <>
+        </> : setup.phase === 'wall-guide' ? <>
             <button type="button" className="secondary-button" onClick={() => setGuideOpen(true)}>查看開門指引</button>
             <button type="button" className="primary-button" onClick={confirmDealt}>已完成配牌</button>
           </> : <button type="button" className="primary-button" disabled={disabled || rolling} onClick={roll}>{rolling ? '擲骰中…' : '擲骰開門'}</button>}
@@ -80,30 +84,17 @@ export function GameControls({ variant, players, setup, disabled, onAction, onBu
             <button type="button" className="secondary-button" onClick={onEditPlayers}>{editingPlayers ? '返回選莊' : '編輯牌友'}</button>
           </> : <>
             <p>莊家：{label(setup.dealer!)}</p>
-            <button className="secondary-button" type="button" disabled={disabled || rolling} onClick={changeDealer}>更改莊家</button>
-            {variant === 'hong-kong' ? <label className="dice-count-label">港式骰子數（家規）
-              <select aria-label="港式骰子數" value={setup.hkDiceCount} disabled={disabled || rolling} onChange={(event) => onAction({ type: 'dice-count', count: Number(event.target.value) as 2 | 3 })}>
-                <option value="3">3 粒（預設）</option><option value="2">2 粒</option>
-              </select>
-            </label> : <p>四人立直：2 粒骰子 · 每邊 17 棟</p>}
+            {!fixedDealer && <button className="secondary-button" type="button" disabled={disabled || rolling} onClick={changeDealer}>更改莊家</button>}
+
             {setup.dice && <DiceFaces dice={setup.dice} />}
             {setup.dice && <button type="button" className="secondary-button" disabled={disabled || rolling} onClick={roll}>重新擲骰並重設配牌</button>}
-            {setup.phase === 'playing' && setup.turn && <>
-              <button type="button" className="secondary-button" onClick={() => setGuideOpen(true)}>查看開門指引</button>
-              <label className="dice-count-label">上／碰／槓後手動指定玩家
-                <select aria-label="手動指定玩家" value={setup.turn} onChange={(event) => onAction({ type: 'turn', position: event.target.value as PlayerPosition })}>
-                  {POSITIONS.map((position) => <option key={position} value={position}>{label(position)}</option>)}
-                </select>
-              </label>
-              <button type="button" className="secondary-button" onClick={() => onAction({ type: 'reset-turn' })}>重設至東家</button>
-              <p>東家起手 14 張，先打第一張；之後南家摸牌。正常次序：東 → 南 → 西 → 北。</p>
-              <p>只記錄手動指定的輪次，不會偵測摸牌、棄牌、上碰槓、立直或食糊。</p>
-            </>}
+
           </>}
-          <button type="button" className="text-action reset-setup" disabled={disabled || rolling} onClick={() => { onAction({ type: 'reset' }); setGuideOpen(false); onSelectDealer() }}>重設開局（保留牌友）</button>
+          <button type="button" className="text-action reset-setup" disabled={disabled || rolling} onClick={() => setResetting(true)}>清除牌友並重設</button>
         </div>
       </details>
     </div>
+    {resetDialog}
     {rolling && <div className="rolling-placeholder" role="status"><span aria-hidden="true">◇ ◇ {count === 3 && '◇'}</span>正在擲骰…</div>}
     {error && <p role="alert" className="game-error">{error}</p>}
     {guideOpen && result && setup.dice && setup.dealer && !rolling && <WallGuide result={result} dice={setup.dice} dealer={setup.dealer} players={players} onClose={() => setGuideOpen(false)} onDealt={setup.phase === 'wall-guide' ? confirmDealt : undefined} />}

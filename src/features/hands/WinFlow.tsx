@@ -1,3 +1,5 @@
+import { frozenRiichiRules } from '../match/engine'
+import { precedingPlayer } from '../actions/chi'
 import { useState } from 'react'
 import { Sheet } from '../../components/Sheet'
 import { POSITIONS } from '../../types/mahjong'
@@ -39,13 +41,13 @@ export function WinFlow({ data, playerId, onChange, onClose }: Props) {
     else if (target === 'dora' || target === 'ura') change({ ...draft, indicators: [...draft.indicators, { id: newId(), kind: target, tile: tileInstance(type, red) }] })
     else {
       if ((target === 'ankan' || target === 'daiminkan') && !kanConfirmed) { setError('請先確認此組槓已完成。'); return }
-      const source = target === 'chi' && draft.variant === 'riichi' ? POSITIONS[(POSITIONS.indexOf(draft.winner) + 1) % 4] : null
+      const source = target === 'chi' && draft.variant === 'riichi' ? precedingPlayer(draft.winner) : null
       change({ ...draft, melds: [...draft.melds, makeMeld(target, type, draft.winner, draft.roundId, draft.variant, newId(), source)] })
       setKanConfirmed(false)
     }
   }
   function persist(confirm: boolean) {
-    try { onChange(saveDraft(data, draft, confirm)); onClose() }
+    try { const next = saveDraft(data, draft, confirm); onChange(confirm && next.match?.roundId === draft.roundId ? { ...next, match: { ...next.match, winPending: true } } : next); onClose() }
     catch (err) { setShowErrors(confirm); setError(err instanceof Error ? err.message : '未能儲存草稿。') }
   }
   const chooseTarget = (next: Target) => { setTarget(next); setError(''); setKanConfirmed(false) }
@@ -53,11 +55,11 @@ export function WinFlow({ data, playerId, onChange, onClose }: Props) {
   return <Sheet title={stage === 'context' ? '食糊／和牌記錄' : '贏牌 Hand Builder'} className="hand-builder" onClose={() => dirty ? setClosing(true) : onClose()}>
     {closing ? <div className="discard-confirm"><h3>放棄未儲存修改？</h3><p>已儲存的草稿會保留。</p><button type="button" className="primary-button action-wide" onClick={() => setClosing(false)}>繼續編輯</button><button type="button" className="secondary-button action-wide" onClick={onClose}>放棄未儲存修改</button></div> : <>
       <p className="action-player"><img src="/mahjong.svg" alt="" width="32" height="32" /> {winnerName} · {draft.variant === 'hong-kong' ? '香港麻雀' : '四人立直'}</p>
-      <p className="action-note">只重建本次贏牌輸入；不計分、不判定合法食糊、不結束牌局。</p>
+      <p className="action-note">只重建本次贏牌輸入；不計分、不判定合法和牌、不結束牌局。</p>
       {stage === 'context' && savedDrafts.length > 0 && <details className="saved-drafts"><summary>繼續已儲存草稿／記錄（{savedDrafts.length}）</summary>{savedDrafts.map((item) => <button type="button" className="secondary-button action-wide" key={item.id} onClick={() => { setDraft(structuredClone(item)); setDirty(false); setStage('builder'); setTarget('concealed'); setError('') }}>{item.status === 'draft' ? '繼續草稿' : '編輯已確認輸入'} · {new Intl.DateTimeFormat('zh-HK', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(item.updatedAt)}{item.roundId !== round.id && '（舊局）'}</button>)}</details>}
       <section className="builder-section"><h3>贏家與方式</h3>
-        <label className="action-field">方式<select aria-label="贏牌方式" value={draft.win.method} onChange={(event) => change({ ...draft, win: { ...draft.win, method: event.target.value as 'tsumo' | 'ron', sourcePlayer: null } })}><option value="tsumo">自摸 / Tsumo</option><option value="ron">出銃 / Ron</option></select></label>
-        {draft.win.method === 'ron' && <label className="action-field">出銃玩家<select aria-label="出銃玩家" value={draft.win.sourcePlayer ?? ''} onChange={(event) => change({ ...draft, win: { ...draft.win, sourcePlayer: (event.target.value || null) as PlayerPosition | null } })}><option value="">請選擇</option>{POSITIONS.filter((seat) => seat !== draft.winner).map((seat) => <option key={seat} value={seat}>{draftRound.players[seat].nickname}</option>)}</select></label>}
+        <label className="action-field">方式<select aria-label="贏牌方式" value={draft.win.method} onChange={(event) => change({ ...draft, win: { ...draft.win, method: event.target.value as 'tsumo' | 'ron', sourcePlayer: null } })}><option value="tsumo">自摸 / Tsumo</option><option value="ron">{draft.variant === 'riichi' ? '榮和 / Ron' : '出銃'}</option></select></label>
+        {draft.win.method === 'ron' && <label className="action-field">{draft.variant === 'riichi' ? '放銃玩家' : '出銃玩家'}<select aria-label={draft.variant === 'riichi' ? '放銃玩家' : '出銃玩家'} value={draft.win.sourcePlayer ?? ''} onChange={(event) => change({ ...draft, win: { ...draft.win, sourcePlayer: (event.target.value || null) as PlayerPosition | null } })}><option value="">請選擇</option>{POSITIONS.filter((seat) => seat !== draft.winner).map((seat) => <option key={seat} value={seat}>{draftRound.players[seat].nickname}</option>)}</select></label>}
         {draft.variant === 'hong-kong' && <label className="check-line"><input type="checkbox" checked={draft.win.specialFlower} onChange={(event) => change({ ...draft, win: { ...draft.win, specialFlower: event.target.checked } })} />花糊記錄（不要求一般 14 張；資格自行核對）</label>}
       </section>
       {stage === 'builder' && <>
@@ -85,7 +87,7 @@ export function WinFlow({ data, playerId, onChange, onClose }: Props) {
       </section>
       {stage === 'builder' && draft.variant === 'hong-kong' && <section className="builder-section"><h3>花牌 <small>各一張，不計入暗牌</small></h3><div className="flower-palette">{Object.entries(FLOWERS).map(([id, label]) => <button type="button" key={id} aria-label={`花牌 ${label}`} aria-pressed={draft.flowers.includes(id as FlowerType)} onClick={() => change({ ...draft, flowers: draft.flowers.includes(id as FlowerType) ? draft.flowers.filter((item) => item !== id) : [...draft.flowers, id as FlowerType] })}>{label}</button>)}</div></section>}
       {stage === 'builder' && draft.variant === 'riichi' && <>
-        <details className="builder-section"><summary>赤五家規設定</summary><label className="check-line"><input type="checkbox" checked={draft.redFives.enabled} onChange={(event) => change({ ...draft, redFives: { ...draft.redFives, enabled: event.target.checked } })} />使用赤五（與普通五牌共享四張上限）</label>{draft.redFives.enabled && (['m', 'p', 's'] as const).map((suit) => <label className="action-field" key={suit}>{suit === 'm' ? '萬' : suit === 'p' ? '筒' : '索'}赤五數量<select aria-label={`${({ m: '萬', p: '筒', s: '索' })[suit]}赤五設定`} value={draft.redFives.perSuit[suit]} onChange={(event) => change({ ...draft, redFives: { ...draft.redFives, perSuit: { ...draft.redFives.perSuit, [suit]: Number(event.target.value) } } })}>{[0, 1, 2, 3, 4].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>)}</details>
+        <details className="builder-section"><summary>赤五家規設定</summary><fieldset disabled={!!frozenRiichiRules(data, draft.roundId)} style={{ border: 0, padding: 0, margin: 0 }}><legend className="sr-only">本局赤五規則</legend><label className="check-line"><input type="checkbox" checked={draft.redFives.enabled} onChange={(event) => change({ ...draft, redFives: { ...draft.redFives, enabled: event.target.checked } })} />使用赤五（與普通五牌共享四張上限）</label>{draft.redFives.enabled && (['m', 'p', 's'] as const).map((suit) => <label className="action-field" key={suit}>{suit === 'm' ? '萬' : suit === 'p' ? '筒' : '索'}赤五數量<select aria-label={`${({ m: '萬', p: '筒', s: '索' })[suit]}赤五設定`} value={draft.redFives.perSuit[suit]} onChange={(event) => change({ ...draft, redFives: { ...draft.redFives, perSuit: { ...draft.redFives.perSuit, [suit]: Number(event.target.value) } } })}>{[0, 1, 2, 3, 4].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>)}</fieldset></details>
         <section className="builder-section"><h3>寶牌指示牌（牌山實際揭開的牌）</h3><p className="action-note">只輸入實際揭開的牌，並非直接選寶牌。寶牌不等於役，不計番。</p>
           {kans > 0 && <p>已確認 {kans} 組完成的槓，請核對額外已揭指示牌；未完成／被搶槓不計。</p>}
           {draft.indicators.map((indicator) => <div className="indicator-card" key={indicator.id}><span>{indicator.kind === 'ura' ? '裏寶牌指示牌' : '寶牌指示牌'}</span><TileFace type={indicator.tile.type} red={indicator.tile.red} /><span>→ 實際寶牌（自動計算）：{tileLabel(getDoraFromIndicator(indicator.tile.type))}</span><button className="text-action" type="button" onClick={() => change({ ...draft, indicators: draft.indicators.filter((item) => item.id !== indicator.id) })}>移除指示牌</button></div>)}

@@ -1,3 +1,4 @@
+import { decodeMatch } from '../match/storage'
 import { POSITIONS } from '../../types/mahjong'
 import { FLOWERS, isTileType } from '../hands/tiles'
 import type { GameplayData } from './models'
@@ -17,6 +18,7 @@ function action(value: unknown): boolean {
   if (value.kind === 'riichi') return typeof value.confirmed === 'boolean'
   if (!isTileType(value.tile) || !text(value.meldId) || !['completed', 'robbed'].includes(String(value.kanStatus))) return false
   if (value.kind === 'shouminkan') return text(value.targetMeldId) && typeof value.physicalConfirmed === 'boolean'
+  if (value.kind === 'chi' && value.claimedTile !== undefined && (!isTileType(value.claimedTile) || !list(value.suppliedTiles, isTileType) || (value.suppliedTiles as unknown[]).length !== 2 || value.physicalConfirmed !== true || !(value.chiRedIndex === null || [0, 1, 2].includes(Number(value.chiRedIndex))))) return false
   return ['chi', 'pon', 'ankan', 'daiminkan'].includes(String(value.kind)) && nullablePosition(value.sourcePlayer) && typeof value.riichiAnkanConfirmed === 'boolean'
 }
 export function decodeGameplay(value: unknown): GameplayData | undefined {
@@ -32,6 +34,11 @@ export function decodeGameplay(value: unknown): GameplayData | undefined {
   const data = structuredClone(value) as unknown as GameplayData
   const roundIds = new Set(data.rounds.map((round) => round.id))
   if (roundIds.size !== data.rounds.length || (data.activeRoundId && !roundIds.has(data.activeRoundId)) || data.actions.some((item) => !roundIds.has(item.roundId)) || data.drafts.some((item) => !roundIds.has(item.roundId)) || new Set(data.actions.map((item) => item.id)).size !== data.actions.length || new Set(data.drafts.map((item) => item.id)).size !== data.drafts.length) throw new Error('動作／草稿參照資料無效。')
+  data.match = decodeMatch(data.match, roundIds)
+  if (data.pastMatches !== undefined) {
+    if (!Array.isArray(data.pastMatches)) throw new Error('封存牌局資料無效。')
+    data.pastMatches = data.pastMatches.map((match) => decodeMatch(match, roundIds)!)
+  }
   return data
 }
 function nullableId(value: unknown) { return value === null || text(value) }

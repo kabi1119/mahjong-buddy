@@ -30,6 +30,7 @@ describe('phase-aware player actions', () => {
     fireEvent.click(screen.getByRole('button', { name: '編輯下方玩家：bottom' }))
     expect(screen.getByRole('dialog', { name: '編輯牌友' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: '食糊' })).toBeNull()
+    await saved()
     app.unmount()
     await launch()
     fireEvent.click(seat())
@@ -74,6 +75,7 @@ describe('phase-aware player actions', () => {
     expect(screen.getByRole('button', { name: '暗槓' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '大明槓' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: /^加槓/ })).toBeNull()
+    await saved()
     app.unmount()
     const data = recordAction(ponGame(), 'bottom', call('pon', 'white', 'meld-b'))
     await launch('hong-kong', data)
@@ -89,7 +91,7 @@ describe('phase-aware player actions', () => {
     await saved()
     expect(projectRound((await loadSettings()).gameplay!, 'round-a').melds.find((meld) => meld.id === 'meld-a')?.kind).toBe('shouminkan')
   })
-  it('persists Riichi with a badge, and history undo removes the badge without deducting points', async () => {
+  it('persists Riichi with a badge, and history undo removes the badge and refunds its single deposit', async () => {
     await launch('riichi')
     fireEvent.click(seat())
     fireEvent.click(screen.getByRole('button', { name: '立直' }))
@@ -104,7 +106,7 @@ describe('phase-aware player actions', () => {
     await saved()
     fireEvent.click(screen.getByRole('button', { name: '關閉' }))
     expect(within(seat()).queryByText('立直')).toBeNull()
-    expect((await loadSettings()).gameplay).not.toHaveProperty('points')
+    expect((await loadSettings()).gameplay?.match).toMatchObject({ pool: 0, points: { bottom: 25000 } })
   })
 })
 
@@ -135,6 +137,7 @@ describe('win-only Hand Builder', () => {
     expect(screen.queryByRole('button', { name: /新增裏寶牌/ })).toBeNull()
     expect(screen.getByRole('button', { name: '赤五萬' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: '花牌 春' })).toBeNull()
+    await saved()
     app.unmount()
     await launch('hong-kong')
     fireEvent.click(seat())
@@ -158,6 +161,7 @@ describe('win-only Hand Builder', () => {
     const stored = (await loadSettings()).gameplay!
     expect(stored.drafts[0].concealed[0].type).toBe('1m')
     expect(stored.drafts[0].status).toBe('draft')
+    await saved()
     app.unmount()
     await launch('hong-kong', stored)
     fireEvent.click(seat())

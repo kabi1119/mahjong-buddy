@@ -1,4 +1,5 @@
-import { POSITIONS } from '../../types/mahjong'
+import { frozenRiichiRules } from '../match/engine'
+import { precedingPlayer } from '../actions/chi'
 import type { GameplayData, HandDraft, Meld } from '../actions/models'
 import { getEligibleAddedKanMelds, projectRound, upgradePon } from '../actions/engine'
 import { FLOWERS, isFive, isTileType, newId, sequenceFrom, tileLabel } from './tiles'
@@ -11,7 +12,7 @@ export function createDraft(data: GameplayData, roundId: string, winner: PlayerP
   return { version: 1, id: newId(), roundId, variant: round.variant, winner,
     win: { method: 'tsumo', sourcePlayer: null, specialFlower: false }, concealed: [],
     melds: structuredClone(projectRound(data, roundId).melds.filter((meld) => meld.playerId === winner)), winningTile: null,
-    flowers: [], indicators: [], redFives: { enabled: round.variant === 'riichi', perSuit: { m: 1, p: 1, s: 1 } },
+    flowers: [], indicators: [], redFives: { enabled: round.variant === 'riichi', perSuit: structuredClone(frozenRiichiRules(data, roundId)?.redFives ?? { m: 1, p: 1, s: 1 }) },
     status: 'draft', createdAt: Date.now(), updatedAt: Date.now() }
 }
 export const handTiles = (draft: HandDraft): TileInstance[] => [...draft.concealed, ...draft.melds.flatMap((meld) => meld.tiles), ...(draft.winningTile ? [draft.winningTile] : [])]
@@ -44,8 +45,8 @@ export function validateDraft(draft: HandDraft, data: GameplayData, complete = f
   const errors: string[] = []
   const round = data.rounds.find((item) => item.id === draft.roundId)
   if (!round || round.variant !== draft.variant || !round.players[draft.winner]) errors.push('牌局／玩家資料不符。')
-  if (draft.win.method === 'ron' && draft.win.sourcePlayer === draft.winner) errors.push('出銃玩家不能是贏家。')
-  if (draft.win.method === 'tsumo' && draft.win.sourcePlayer) errors.push('自摸不應有出銃玩家。')
+  if (draft.win.method === 'ron' && draft.win.sourcePlayer === draft.winner) errors.push(draft.variant === 'riichi' ? '放銃玩家不能是贏家。' : '出銃玩家不能是贏家。')
+  if (draft.win.method === 'tsumo' && draft.win.sourcePlayer) errors.push('自摸不應有棄牌來源玩家。')
   if (draft.melds.length > 4) errors.push('副露組數不可超過四組。')
   const physical = [...handTiles(draft), ...draft.indicators.map((item) => item.tile)]
   if (new Set(physical.map((tile) => tile.id)).size !== physical.length) errors.push('同一張實體牌被重複放入，食糊牌請只輸入一次。')
@@ -68,7 +69,7 @@ export function validateDraft(draft: HandDraft, data: GameplayData, complete = f
   for (const meld of draft.melds) {
     const referenced = data.actions.find((action) => action.id === (meld.kind === 'shouminkan' ? meld.upgradeActionId : meld.actionId))
     if (complete && referenced && !projectRound(data, draft.roundId).melds.some((item) => item.id === meld.id && item.kind === meld.kind && item.tile === meld.tile)) errors.push('副露記錄已更正／撤回，請核對或同步草稿。')
-    if (meld.sourcePlayer === draft.winner || (meld.kind === 'chi' && draft.variant === 'riichi' && meld.sourcePlayer !== POSITIONS[(POSITIONS.indexOf(draft.winner) + 1) % 4])) errors.push('副露來源玩家不正確。')
+    if (meld.sourcePlayer === draft.winner || (meld.kind === 'chi' && draft.variant === 'riichi' && meld.sourcePlayer !== precedingPlayer(draft.winner))) errors.push('副露來源玩家不正確。')
     if (meld.playerId !== draft.winner || meld.roundId !== draft.roundId || meld.status !== 'active') errors.push('副露不屬於此贏家／牌局。')
     const expected = meld.kind === 'chi' ? (() => { try { return sequenceFrom(meld.tile) } catch { return [] } })() : Array.from({ length: meld.kind === 'pon' ? 3 : 4 }, () => meld.tile)
     if (!expected.length || meld.tiles.length !== expected.length || meld.tiles.some((tile, index) => tile.type !== expected[index]) || meld.open !== (meld.kind !== 'ankan')) errors.push('副露牌數或結構不正確。')
@@ -83,7 +84,7 @@ export function validateDraft(draft: HandDraft, data: GameplayData, complete = f
   if (ura && (!hasConfirmedRiichi(data, draft) || ura > dora)) errors.push('裏寶牌只適用於已確認立直、門前清的贏家，且不可多於已揭指示牌。')
   if (complete) {
     if (projectRound(data, draft.roundId).riichi.some((item) => item.playerId === draft.winner) && draft.melds.some((meld) => meld.open)) errors.push('立直記錄與重建明副露矛盾，請先更正立直記錄。')
-    if (draft.win.method === 'ron' && !draft.win.sourcePlayer) errors.push('請選擇出銃玩家。')
+    if (draft.win.method === 'ron' && !draft.win.sourcePlayer) errors.push(draft.variant === 'riichi' ? '請選擇放銃玩家。' : '請選擇出銃玩家。')
     if (draft.win.specialFlower) {
       if (draft.variant !== 'hong-kong' || !draft.flowers.length) errors.push('花糊記錄需要花牌；不會判定花糊資格。')
     } else {

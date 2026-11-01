@@ -18,7 +18,6 @@ export function WallGuide({ result, dice, dealer, players, onClose, onDealt }: P
   const ref = useRef<HTMLDialogElement>(null)
   const winds = assignSeatWinds(dealer)
   const owner = (wall: PlayerPosition) => `${players[wall]?.nickname ?? POSITION_LABELS[wall]}（${winds[wall]}）`
-  const location = (stack: WallStack) => `${owner(stack.wall)}牌牆，從該玩家右端起第 ${stack.index + 1} 棟`
   const direction = RIGHT_END_GUIDE[result.wall]
   useEffect(() => {
     const previous = document.activeElement
@@ -31,9 +30,9 @@ export function WallGuide({ result, dice, dealer, players, onClose, onDealt }: P
   return <dialog ref={ref} className="player-dialog wall-guide" aria-labelledby="wall-guide-title" onCancel={(event) => { event.preventDefault(); onClose() }}>
     <div className="sheet-handle" aria-hidden="true" />
     <div className="editor-header"><h2 id="wall-guide-title">開門指引</h2><button type="button" className="close-button" onClick={onClose} aria-label="關閉開門指引">×</button></div>
-    <ol className="guide-steps">
-      <li><h3>骰子結果</h3><DiceFaces dice={dice} /><p>由莊家 {owner(dealer)} 作 1，逆時針數東 → 南 → 西 → 北。</p></li>
-      <li><h3>揀選牌牆</h3><p>數到 {result.total}：在 <strong>{owner(result.wall)}</strong> 面前的牌牆開門。</p>
+    <div className="guide-steps">
+      <section><h3>骰子結果</h3><DiceFaces dice={dice} /><p>由莊家 {owner(dealer)} 作 1，逆時針數東 → 南 → 西 → 北。</p></section>
+      <section><h3>揀選牌牆</h3><p>數到 {result.total}：在 <strong>{owner(result.wall)}</strong> 面前的牌牆開門。</p>
         <svg className="wall-diagram" viewBox="0 0 320 320" role="img" aria-label={`俯視圖：${owner(result.wall)}牌牆，第 ${result.total} 棟後開門；綠色為起手位置，${result.dora ? '金色為王牌，星號為寶牌指示牌' : '尾為補花補槓端'}。`}>
           <defs><marker id="count-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#f9dc95" /></marker></defs>
           <rect x="27" y="27" width="266" height="266" rx="22" fill="#244f3f" />
@@ -55,11 +54,11 @@ export function WallGuide({ result, dice, dealer, players, onClose, onDealt }: P
           <text x="160" y="118" textAnchor="middle" fill="#f4efda" fontSize="14">順時針取牌 ↻</text>
           <text x="160" y="145" textAnchor="middle" fill="#d5dfc8" fontSize="11">金框：開門牌牆</text>
           <text x="160" y="165" textAnchor="middle" fill="#9fe5c1" fontSize="11">始：莊家第一棟</text>
-          <text x="160" y="185" textAnchor="middle" fill="#dbb96f" fontSize="11">{result.deadWall.length ? '金色：王牌　★：指示牌' : '尾：補花／補槓端'}</text>
+          <text x="160" y="185" textAnchor="middle" fill="#dbb96f" fontSize="11">{result.deadWall.length ? '金色：王牌 ★：指示牌' : '尾：補花／補槓端'}</text>
           {POSITIONS.map((wall) => {
             const positions = { top: [160, 15], bottom: [160, 311], left: [18, 158], right: [302, 158] }
             const [x, y] = positions[wall]
-            return <text key={wall} x={x} y={y} textAnchor="middle" fontSize="11" fill="#244f3f">{winds[wall]}{wall === dealer ? '莊' : ''}</text>
+            return <text key={wall} x={x} y={y} textAnchor="middle" fontSize="11" fill="currentColor">{winds[wall]}{wall === dealer ? '莊' : ''}</text>
           })}
           {(() => {
             const p = wallStackPoint(result.counted, result.stacksPerWall)
@@ -71,11 +70,10 @@ export function WallGuide({ result, dice, dealer, players, onClose, onDealt }: P
           })()}
         </svg>
         <ul className="wall-owners">{POSITIONS.map((wall) => <li key={wall}>{POSITION_LABELS[wall]}：{owner(wall)}</li>)}</ul>
-        <p>從玩家右端（{direction.start}）沿{direction.direction}數 {result.total} 棟，在紅點開門。綠色「始」：{location(result.firstLive)}，由此順時針配牌，跨角繼續。</p>
-        {result.dora ? <p><strong>王牌不可作普通摸牌。</strong>金色七棟（14 張）留起；★ 為距開門處倒數第 3 棟的上層：{location(result.dora)}。王牌可跨角。</p>
-          : <p>「尾」為補花／補槓端：{location(result.replacementEnd)}，逆普通取牌方向取用；港式 18 棟，不固定留王牌。</p>}
-      </li>
-    </ol>
+        <p>從玩家右端（{direction.start}）沿{direction.direction}數 {result.total} 棟，在紅點開門。綠色「始」為第一棟取牌位置，由此順時針配牌，跨角繼續。</p>
+        {result.dora ? <p className="dead-wall-hint">金色：王牌 · ★：寶牌指示牌<br />槓後：由王牌的嶺上牌補一張</p> : <p>「尾」：補花／補槓端，逆普通取牌方向取用。</p>}
+      </section>
+    </div>
     <div className="editor-actions"><button type="button" className="secondary-button" onClick={onClose}>返回牌桌</button>{onDealt && <button type="button" className="primary-button" onClick={onDealt}>已完成配牌</button>}</div>
   </dialog>
 }

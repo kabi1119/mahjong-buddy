@@ -35,17 +35,17 @@ npm run preview
 - Mobile layout with a 430px maximum width, safe-area padding, and reduced-motion support. From 900px viewport width, the same centered single-column app has a 590px maximum width with larger table contents. Desktop height follows its content rather than filling the viewport, and all controls remain reachable by scrolling.
 - Manual/random dealer selection, counter-clockwise seat winds, two/three HK dice or two Riichi dice, and a rotated wall-opening guide.
 - Initial Riichi dead-wall/dora locations and HK replacement-tail guidance.
-- Explicitly manual turn tracking after confirming dealing, including claim overrides and reset to East.
+- A 2×2 mode selector (two enabled), system/light/dark themes, Smart Chi, frozen rule preferences, exhaustive draws, dealer progression, Noten payments, Honba, deposits, history and undo. Four-Kan confirmation uses a separate abortive outcome.
 
 Switching modes preserves player seats and resets setup. Physical seat labels describe screen positions; Mahjong winds are assigned relative to the selected dealer. Cancelled editor drafts are never saved.
 
-Win-triggered hand reconstruction and manual call recording are implemented. No scoring, complete winning-hand validation, tile simulation, automatic physical-action detection, dealer rotation, settlement, authentication, backend, or PWA caching is included. See [rules and chosen variations](rules.md) for verified references, coordinate conventions and limitations.
+Win-triggered hand reconstruction and manual call recording are implemented. No win scoring, complete winning-hand validation, tile simulation, automatic physical-action detection, win-driven dealer rotation or win settlement, authentication, backend, or PWA caching is included. See [rules and chosen variations](rules.md) for verified references, coordinate conventions and limitations.
 
 ## Local storage
 
 - Database: `mahjong-companion`, database version 1. This legacy persistence identifier is intentionally retained after the Mahjong Buddy rename so existing local data remains available on the same browser and origin.
 - Object store: `settings`; single record key: `table`.
-- Record: `{ schemaVersion: 1, variant, players: { [seat]: { nickname, avatar } }, setup?, gameplay? }`. Position is stored only as the map key; the React model reconstructs it when loading. The optional versioned `setup` is additive and retains compatibility with older player records.
+- Record: `{ schemaVersion: 1, variant, players: { [seat]: { nickname, avatar } }, setup?, gameplay?, preferences?, themePreference? }`. Position is stored only as the map key; the React model reconstructs it when loading. The optional versioned `setup` is additive and retains compatibility with older player records.
 - Database and record versions are separate migration boundaries for future changes. Unsupported record versions are not overwritten.
 - Startup performs a read without saving defaults; editing controls stay disabled until it settles. Confirmed player changes, removals, mode changes and game setup actions enqueue writes. Writes are serialized to preserve the order of rapid changes.
 - A missing record uses defaults. Stored variants, seats, nicknames and avatars are validated; invalid entries are ignored. Nothing is automatically written back during restoration.
@@ -56,13 +56,13 @@ Storage belongs to this browser and origin. Clearing site data can remove it, an
 ## Source layout
 
 - `src/App.tsx`: application shell, mode and player state.
-- `src/features/table/MahjongTable.tsx`: table, seats, dealer/turn highlights and game information.
+- `src/features/table/MahjongTable.tsx`: table, seats, dealer highlights and round actions and game information.
 - `src/features/players/PlayerEditor.tsx`: draft player editing and accessible dialog.
 - `src/types/mahjong.ts`: variant, seat, avatar and player types and options.
 - `src/storage/settings.ts`: versioned IndexedDB access and stored-data validation.
 - `src/storage/useSettings.ts`: hydration, serialized confirmed writes and storage status.
-- `src/features/game/`: pure setup/rule calculations, dice controls, manual turns and wall-opening diagram.
-- `src/App.css` / `src/index.css`: application and global styles.
+- `src/features/game/`: pure setup/rule calculations, dice controls, legacy setup compatibility and wall-opening diagram.
+- `src/App.css` / `src/index.css` / `src/themes.css`: application and global styles.
 - `tests/`: Vitest tests using jsdom, React Testing Library, and fake-indexeddb. These are development-only dependencies; persistence has no runtime dependency.
 
 ## Deploy to Cloudflare Workers
@@ -86,7 +86,7 @@ Player names, avatars, mode, dealer, dice and setup state continue to use the sa
 
 ## Validation and mobile QA
 
-Production build, ESLint and automated tests pass. Tests cover the previous player-persistence behavior plus all dealer positions, dice rejection sampling, selected walls, right-end orientations, corner wrapping, dead-wall/dora locations, roll overlap prevention, reduced motion, game-state invalidation/restoration, manual turns, and reset without losing players.
+Production build, ESLint and automated tests pass. Tests cover the previous player-persistence behavior plus all dealer positions, dice rejection sampling, selected walls, right-end orientations, corner wrapping, dead-wall/dora locations, roll overlap prevention, reduced motion, game-state invalidation/restoration, match progression, four-Kan pending/finalized outcomes, ledger reconciliation, and both safe resets.
 
 A prior deployment dry run passed against `dist/` assets with no bindings. This is a local packaging check, distinct from the already deployed public app.
 
@@ -101,17 +101,17 @@ Tests emulate IndexedDB and dialog opening in jsdom. They do not verify native d
 7. On iOS and Android, check safe areas, scrolling with the software keyboard open, and access to save/cancel on short screens.
 8. Refresh or reopen the same origin and confirm players and mode restore. Remove one player, refresh again, and confirm only that seat stays empty.
 9. Simulate blocked storage and quota errors in a browser. Confirm warnings are readable, settings remain editable, and no saved state is overwritten following a failed read.
-10. Complete dealer selection and rolling in both variants; compare the diagram against a physical wall, including a Riichi total of 2 and an HK total of 18. Check the wall-guide dialog's focus and scrolling. Confirm dealing, advance/override turns, refresh, and verify restoration.
+10. Complete dealer selection and rolling in both variants; compare the diagram against a physical wall, including a Riichi total of 2 and an HK total of 18. Check the wall-guide dialog's focus and scrolling. Confirm dealing, record actions and a draw, refresh, and verify round/ledger restoration.
 
 ## v0.2.0b interface notes
 
-The current application and package version is 0.2.1. The compact mobile and centered desktop layout from v0.2.0b/c is preserved. Database/store/key and record schemaVersion remain unchanged. New gameplay data is an additive, independently versioned field; see the [gameplay model](hand-recording.md). Current wind artwork is 東 for HK and 南 for four-player Riichi. 西 and 北 are metadata-only reservations for planned modes.
+The RC1 display version is v1.0.0rc1 and the valid npm SemVer is 1.0.0-rc.1. The compact mobile and centered desktop layout from v0.2.0b/c is preserved. Database/store/key and record schemaVersion remain unchanged. New gameplay data is an additive, independently versioned field; see the [gameplay model](hand-recording.md). Current wind artwork is 東 for HK and 南 for four-player Riichi. 西 and 北 appear as disabled Coming soon cards; they remain outside the playable variant union.
 
-The mobile table uses content-sized grid rows and a dynamic-viewport minimum size, capped for larger phones. Safari safe areas are included in spacing and size calculations. Long names, expanded settings, accessibility text and short screens can increase page height; ordinary scrolling is intentional. The current action stays outside the secondary details panel. Player and wall dialogs use their own dynamic-height scroll areas.
+The mobile table uses content-sized grid rows and a dynamic-viewport minimum size, capped for larger phones. Safari safe areas are included in spacing and size calculations. Long names, expanded settings, accessibility text and short screens can increase page height; ordinary scrolling is intentional. Preparation actions stay outside secondary details. During play there is no More panel or manual turn tracker. Player and wall dialogs use their own dynamic-height scroll areas.
 
 Real iPhone Safari, browser chrome, standalone mode, zoom and native dialog focus remain manual verification tasks. The Apple touch icon is branding only: it does not supply offline caching or installation guarantees. Original SVG files are authoritative; PNG icons are raster exports of the same artwork.
 
-## v0.2.1 module map
+## Gameplay module map
 
 - `src/features/actions/`: versioned data models, pure event projection, same-ID Pon upgrades, undo/correction, round reconciliation, conservative decoder and player sheet.
 - `src/features/hands/`: complete typed tile catalog, original SVG tile artwork, structural/physical validation and the win-only reconstruction flow.
@@ -119,3 +119,11 @@ Real iPhone Safari, browser chrome, standalone mode, zoom and native dialog focu
 - `tests/actions.test.ts`, `tests/hands.test.ts`, `tests/gameplayStorage.test.ts`, `tests/playerActions.test.tsx`: deterministic engine, persistence and component coverage.
 
 The same `useSettings` write queue handles all data. Round reset/variant changes archive actions and drafts instead of deleting them. No alternate persistence system or runtime dependency was added.
+
+## RC1 persistence and themes
+
+`src/features/match/` owns independent rule preferences, frozen snapshots, the pure match cursor/ledger, validation and sheets. One authoritative `GameplayData.activeRoundId` binds actions and drafts. Each confirmed draw archives the old hand and creates a new ID atomically within the same record. Match and preferences version 1 are optional additive fields; no stores or database identifiers change. Unknown future versions fail closed without overwriting the record. Resets archive recoverable match data in `pastMatches`. Legacy Riichi declarations require a manual current-balance baseline and are never silently debited.
+
+Theme preference is system/light/dark, independent of gameplay. IndexedDB is authoritative; localStorage key `mahjong-buddy:theme` is only a pre-paint cache for the HTML bootstrap. System media changes are subscribed while in system mode. Global CSS tokens cover dialogs, fields, palettes, errors and the shell; original tile SVG pigments remain unchanged.
+
+RC1 is a friends-testing prerelease. No commit, push, deployment or new network dependency is part of implementation. See [RC1 review report](release-rc1.md) for release limits, test results and proposed commit text.

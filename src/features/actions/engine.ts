@@ -1,3 +1,4 @@
+import { precedingPlayer } from './chi'
 import { POSITIONS } from '../../types/mahjong'
 import type { MahjongVariant, Player, PlayerPosition } from '../../types/mahjong'
 import { isFive, isTileType, newId, sequenceFrom } from '../hands/tiles'
@@ -56,13 +57,32 @@ export function projectRound(data: GameplayData, roundId: string): { melds: Meld
       }
       if (action.sourcePlayer !== null && !POSITIONS.includes(action.sourcePlayer)) throw new Error('未知來源玩家。')
       if (action.sourcePlayer === action.playerId) throw new Error('來源玩家不能是自己。')
-      if (action.kind === 'chi' && round.variant === 'riichi' && action.sourcePlayer !== POSITIONS[(POSITIONS.indexOf(action.playerId) + 1) % 4]) throw new Error('立直吃牌只能取上家的棄牌。')
+      if (action.kind === 'chi' && round.variant === 'riichi' && action.sourcePlayer !== precedingPlayer(action.playerId)) throw new Error('立直吃牌只能取上家的棄牌。')
       if (declared && action.riichiAnkanConfirmed !== true) throw new Error('立直後暗槓需要玩家另行確認規則限制。')
       if ((action.kind === 'ankan' || action.kind === 'daiminkan') && action.kanStatus === 'robbed') continue
       if (melds.filter((meld) => meld.playerId === action.playerId).length >= 4) throw new Error('此玩家已記錄四組副露，請先更正。')
       if (melds.some((meld) => meld.id === action.meldId)) throw new Error('重複副露識別碼。')
       if (round.variant === 'riichi' && action.kind !== 'pon' && action.kind !== 'chi' && melds.filter((meld) => meld.tiles.length === 4).length >= 4) throw new Error('此局已記錄四組完成的槓。')
       const meld = makeMeld(action.kind, action.tile, action.playerId, roundId, round.variant, action.meldId, action.sourcePlayer)
+      if (action.kind === 'chi' && action.claimedTile !== undefined) {
+        const types = meld.tiles.map((item) => item.type)
+        if (action.physicalConfirmed !== true || action.sourcePlayer !== precedingPlayer(action.playerId) || !types.includes(action.claimedTile) || !Array.isArray(action.suppliedTiles) || JSON.stringify(action.suppliedTiles) !== JSON.stringify(types.filter((type) => type !== action.claimedTile))) throw new Error('順子來源、棄牌或兩張手牌未正確確認。')
+        if (action.chiRedIndex !== null && action.chiRedIndex !== undefined) {
+          const index = action.chiRedIndex
+          if (round.variant !== 'riichi' || !Number.isInteger(index) || index < 0 || index > 2 || !isFive(types[index])) throw new Error('赤五組成無效。')
+          const rules = data.match?.rules
+          if (rules?.variant === 'riichi' && rules.redFives[types[index][1] as 'm' | 'p' | 's'] < 1) throw new Error('此花色未啟用赤五。')
+          meld.tiles[index].red = true
+          meld.redCount = 1
+        } else meld.redCount = 0
+        meld.claimedTile = action.claimedTile; meld.suppliedTiles = [...action.suppliedTiles]; meld.chiRedIndex = action.chiRedIndex
+        if (data.match?.rules.variant === 'riichi') {
+          for (const suit of ['m', 'p', 's'] as const) {
+            const reds = [...melds, meld].flatMap((item) => item.tiles).filter((item) => item.red && item.type.endsWith(suit)).length
+            if (reds > data.match.rules.redFives[suit]) throw new Error('已記錄赤五超過本局家規數量。')
+          }
+        }
+      }
       meld.order = action.order
       meld.actionId = action.id
       assertKnownTiles([...melds, meld])
@@ -83,7 +103,8 @@ function validateRound(data: GameplayData, round: RoundContext) {
 }
 export function recordAction(data: GameplayData, playerId: PlayerPosition, input: ActionInput, id: string = newId()): GameplayData {
   const round = activeRound(data)
-  if (!round) throw new Error('請先完成配牌。')
+  if (!round || (data.match && data.match.phase !== 'playing')) throw new Error('請先完成配牌。')
+  if (input.kind === 'riichi' && data.match?.legacyUnreconciled) throw new Error('舊局未對帳，請由流局／摘要填寫實際點數及供託。')
   if (data.actions.some((action) => action.id === id)) throw new Error('重複動作識別碼。')
   const action = { ...input, id, playerId, roundId: round.id, order: Math.max(0, ...data.actions.map((item) => item.order)) + 1, status: 'active', revision: 0 } as PlayerAction
   const next = { ...data, actions: [...data.actions, action] }

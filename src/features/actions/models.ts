@@ -1,3 +1,4 @@
+import type { MatchState } from '../match/models'
 import type { MahjongVariant, Player, PlayerPosition } from '../../types/mahjong'
 import type { FlowerType, Suit, TileInstance, TileType } from '../hands/tiles'
 export type KanKind = 'ankan' | 'daiminkan' | 'shouminkan'
@@ -12,6 +13,7 @@ interface ActionBase {
 }
 export interface CallAction extends ActionBase {
   kind: Exclude<MeldKind, 'shouminkan'>; tile: TileType; meldId: string
+  claimedTile?: TileType; suppliedTiles?: TileType[]; chiRedIndex?: number | null; physicalConfirmed?: boolean
   sourcePlayer: PlayerPosition | null; kanStatus: 'completed' | 'robbed'; riichiAnkanConfirmed: boolean
 }
 export interface AddedKanAction extends ActionBase {
@@ -25,6 +27,7 @@ export type ActionInput =
   | Omit<AddedKanAction, keyof ActionBase>
   | Omit<RiichiAction, keyof ActionBase>
 export interface Meld {
+  claimedTile?: TileType; suppliedTiles?: TileType[]; chiRedIndex?: number | null
   id: string; roundId: string; playerId: PlayerPosition; kind: MeldKind; tile: TileType
   tiles: TileInstance[]; open: boolean; sourcePlayer: PlayerPosition | null
   order: number; status: 'active' | 'removed'; actionId: string; redCount: number | null
@@ -40,6 +43,7 @@ export interface HandDraft {
   status: 'draft' | 'confirmed'; createdAt: number; updatedAt: number
 }
 export interface GameplayData {
+  match?: MatchState; pastMatches?: MatchState[]
   version: 1; activeRoundId: string | null; rounds: RoundContext[]; actions: PlayerAction[]; drafts: HandDraft[]
 }
 export const ACTION_LABELS: Record<MeldKind | 'riichi', string> = { chi: '上牌／吃', pon: '碰', ankan: '暗槓', daiminkan: '大明槓', shouminkan: '加槓', riichi: '立直' }

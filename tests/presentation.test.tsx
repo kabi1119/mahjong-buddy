@@ -22,24 +22,24 @@ beforeEach(() => { vi.stubGlobal('indexedDB', new IDBFactory()) })
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('brand and mode artwork', () => {
-  it('renders the new Chinese brand, original bird, valid patch label and exactly two modes', async () => {
+  it('renders the new Chinese brand, original bird, valid patch label and four mode cards, two playable variants', async () => {
     render(<App />)
     await saved()
     expect(screen.getByRole('link', { name: '麻雀小夥伴，前往牌桌' }).querySelector('img')?.getAttribute('src')).toBe('/mahjong.svg')
-    expect(screen.getByText('v0.2.1')).toBeTruthy()
+    expect(screen.getByText('v1.0.0rc1')).toBeTruthy()
     const selector = within(screen.getByRole('group', { name: '麻雀模式' }))
-    expect(selector.getAllByRole('button')).toHaveLength(2)
+    expect(selector.getAllByRole('button')).toHaveLength(4)
     expect(selector.getByRole('button', { name: '香港麻雀' }).querySelector('img')?.getAttribute('src')).toBe('/icons/wind-east.svg')
-    expect(selector.getByRole('button', { name: '日本麻雀' }).querySelector('img')?.getAttribute('src')).toBe('/icons/wind-south.svg')
+    expect(selector.getByRole('button', { name: '日本四麻' }).querySelector('img')?.getAttribute('src')).toBe('/icons/wind-south.svg')
     expect(MODE_CATALOG.sanma.wind).toBe('西')
     expect(MODE_CATALOG.taiwanese.wind).toBe('北')
     expect(MODE_CATALOG.sanma.available).toBe(false)
     expect(MODE_CATALOG.taiwanese.available).toBe(false)
     expect(VARIANTS.map((mode) => mode.id)).toEqual(['hong-kong', 'riichi'])
-    fireEvent.click(selector.getByRole('button', { name: '日本麻雀' }))
+    fireEvent.click(selector.getByRole('button', { name: '日本四麻' }))
     await saved()
     expect((await loadSettings()).variant).toBe('riichi')
-    expect(selector.getByRole('button', { name: '日本麻雀' }).getAttribute('aria-pressed')).toBe('true')
+    expect(selector.getByRole('button', { name: '日本四麻' }).getAttribute('aria-pressed')).toBe('true')
     expect(DATABASE_NAME).toBe('mahjong-companion')
   })
 
@@ -75,17 +75,18 @@ describe('one instruction and contextual primary controls', () => {
   })
 
   it.each([
-    [chosen, '確認莊家'], [ready, '擲骰開門'], [rolled, '已完成配牌'], [playing, '下一家'],
+    [chosen, '確認莊家'], [ready, '擲骰開門'], [rolled, '已完成配牌'], [playing, '重設開局（保留牌友）'],
   ] as const)('keeps the current primary action outside collapsed secondary controls: %s', async (setup, action) => {
     await saveSettings({ variant: 'hong-kong', players, setup })
     render(<App />)
     await saved()
     expect(screen.getByRole('button', { name: action }).closest('details')).toBeNull()
+    if (setup.phase === 'playing') { expect(document.querySelector('details.secondary-actions')).toBeNull(); expect(screen.queryByRole('button', { name: '下一家' })).toBeNull(); return }
     const details = document.querySelector('details.secondary-actions') as HTMLDetailsElement
     expect(details.open).toBe(false)
     fireEvent.click(details.querySelector('summary')!)
     expect(details.open).toBe(true)
-    expect(screen.getByRole('button', { name: '重設開局（保留牌友）' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '清除牌友並重設' })).toBeTruthy()
   })
 })
 
@@ -97,12 +98,14 @@ describe('two-step wall guide', () => {
     render(<WallGuide result={result} dice={[1, 1]} dealer={dealer} players={players} onClose={onClose} onDealt={onDealt} />)
     const dialog = screen.getByRole('dialog', { name: '開門指引' })
     expect(within(dialog).getAllByRole('heading', { level: 3 }).map((node) => node.textContent)).toEqual(['骰子結果', '揀選牌牆'])
-    expect(dialog.querySelectorAll('ol.guide-steps > li')).toHaveLength(2)
+    expect(dialog.querySelectorAll('.guide-steps > section')).toHaveLength(2)
     expect(dialog.querySelector('.counted-strip')).toBeNull()
     expect(dialog.querySelectorAll('svg rect[fill="#dbb96f"]')).toHaveLength(7)
     expect(dialog.querySelectorAll('svg rect[fill="#9fe5c1"]')).toHaveLength(1)
     expect(dialog.querySelector('svg circle')?.getAttribute('cx')).not.toBeNull()
-    expect(within(dialog).getByText(/第 3 棟的上層/).textContent).toContain(`第 ${result.dora!.index + 1} 棟`)
+    expect(within(dialog).getByText(/由王牌的嶺上牌補一張/)).toBeTruthy()
+    expect(dialog.querySelector('ol.guide-steps')).toBeNull()
+    expect(dialog.querySelectorAll('.wall-owners li')).toHaveLength(4)
     fireEvent.click(within(dialog).getByRole('button', { name: '返回牌桌' }))
     expect(onClose).toHaveBeenCalledOnce()
     fireEvent.click(within(dialog).getByRole('button', { name: '已完成配牌' }))
@@ -114,8 +117,8 @@ describe('two-step wall guide', () => {
   it('preserves HK corner-crossing and replacement-tail annotations', () => {
     const result = calculateWallBreak('hong-kong', 18, 'bottom')
     render(<WallGuide result={result} dice={[6, 6, 6]} dealer="bottom" players={players} onClose={vi.fn()} />)
-    expect(screen.getByText(/「尾」為補花/).textContent).toContain('第 18 棟')
-    expect(screen.getByText(/綠色「始」/).textContent).toContain('第 1 棟')
-    expect(document.querySelectorAll('ol.guide-steps > li')).toHaveLength(2)
+    expect(screen.getByText(/「尾」：補花/).textContent).toContain('逆普通取牌方向')
+    expect(screen.getByText(/綠色「始」為第一棟/)).toBeTruthy()
+    expect(document.querySelectorAll('.guide-steps > section')).toHaveLength(2)
   })
 })
