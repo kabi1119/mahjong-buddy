@@ -10,6 +10,7 @@ export interface Settings {
 }
 
 // Database version tracks object-store migrations; schemaVersion tracks record migrations.
+// Legacy identifier: keep this name so the Mahjong Buddy rebrand preserves saved data.
 export const DATABASE_NAME = 'mahjong-companion'
 const DATABASE_VERSION = 1
 const STORE = 'settings'

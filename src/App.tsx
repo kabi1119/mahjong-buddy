@@ -22,7 +22,7 @@ function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <a className="brand" href="#main-table" aria-label="麻雀伴侶，前往牌桌"><span className="brand-tile" aria-hidden="true">發</span><span>麻雀伴侶<small>MAHJONG COMPANION</small></span></a>
+        <a className="brand" href="#main-table" aria-label="麻雀伴侶，前往牌桌"><span className="brand-tile" aria-hidden="true">發</span><span>麻雀伴侶<small>MAHJONG BUDDY</small></span></a>
         <span className="edition">v{version}</span>
       </header>
       <div className="mode-selector" role="group" aria-label="麻雀模式">

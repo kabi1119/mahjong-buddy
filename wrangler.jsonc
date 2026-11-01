@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "mahjong-companion",
+  "name": "app",
+  "account_id": "67ad7282e3bfad478f78663dde617cda",
   "compatibility_date": "2026-11-01",
   "assets": {
     "directory": "./dist",

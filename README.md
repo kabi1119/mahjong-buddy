@@ -1,6 +1,13 @@
-# 麻雀伴侶 · Mahjong Companion
+# 麻雀伴侶 · Mahjong Buddy
 
-Mahjong Companion is a mobile-first companion for **physical** Mahjong games, built with React, TypeScript and Vite. The primary interface uses Traditional Chinese (Hong Kong). The application displays the version from `package.json`.
+Mahjong Buddy is a mobile-first companion for **physical** Mahjong games, built with React, TypeScript and Vite. The primary interface uses Traditional Chinese (Hong Kong). The application displays the version from `package.json`.
+
+## Project
+
+- Local checkout: `C:\Projects\mahjong-buddy`
+- GitHub repository: [kabi1119/mahjong-buddy](https://github.com/kabi1119/mahjong-buddy)
+- Cloudflare target: [app.mahjong-buddy.workers.dev](https://app.mahjong-buddy.workers.dev)
+- Worker name: `app` (independent of the application and repository names).
 
 ## Run locally
 
@@ -36,7 +43,7 @@ No scoring, tile simulation, automatic physical-action detection, dealer rotatio
 
 ## Local storage
 
-- Database: `mahjong-companion`, database version 1.
+- Database: `mahjong-companion`, database version 1. This legacy persistence identifier is intentionally retained after the Mahjong Buddy rename so existing local data remains available on the same browser and origin.
 - Object store: `settings`; single record key: `table`.
 - Record: `{ schemaVersion: 1, variant, players: { [seat]: { nickname, avatar } }, setup? }`. Position is stored only as the map key; the React model reconstructs it when loading. The optional versioned `setup` is additive and retains compatibility with older player records.
 - Database and record versions are separate migration boundaries for future changes. Unsupported record versions are not overwritten.
@@ -69,7 +76,7 @@ npx wrangler login
 npx wrangler deploy
 ```
 
-Wrangler is a development dependency. On PowerShell with script execution disabled, use `npm.cmd` and `npx.cmd`. Login opens Cloudflare's authentication flow; deploy uploads the built frontend in `dist/` to the `mahjong-companion` Worker. Rebuild before each deployment so the uploaded files contain the latest changes. GitHub push alone does **not** deploy; CI/CD must be configured separately.
+Wrangler is a development dependency. On PowerShell with script execution disabled, use `npm.cmd` and `npx.cmd`. Login opens Cloudflare's authentication flow; deploy uploads the built frontend in `dist/` to the `app` Worker. Rebuild before each deployment so the uploaded files contain the latest changes. GitHub push alone does **not** deploy; CI/CD must be configured separately.
 
 The root `wrangler.jsonc` sets compatibility date `2026-11-01`, assets directory `./dist`, and `single-page-application` fallback. There is no Worker API entrypoint, database binding, Cloudflare Vite plugin or backend. See [Cloudflare's SPA routing documentation](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/).
 
