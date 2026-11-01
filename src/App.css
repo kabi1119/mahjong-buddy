@@ -80,7 +80,8 @@
   background:transparent;
   color:var(--muted);
   font-weight:650;
-  transition:background .18s,color .18s;
+  /* Theme colors update in the same paint for every card and its subtitles. */
+  transition:none;
 }
 
 .mode > span  {

@@ -60,7 +60,24 @@ function App() {
           <img className="brand-logo" src="/mahjong.svg" alt="" width="44" height="44" />
           <span>麻雀小夥伴<small>MAHJONG BUDDY</small></span>
         </a>
-        <div className="header-tools"><button className="theme-switch" type="button" role="switch" aria-label="深色模式" aria-checked={theme === 'dark'} disabled={status === 'loading'} onClick={() => updateSettings((current) => ({ ...current, themePreference: theme === 'dark' ? 'light' : 'dark' }))}><span aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span></button><span className="edition">v{version.replace('-rc.', 'rc')}</span></div>
+        <div className="header-tools">
+          <button className="theme-switch" type="button" role="switch" aria-label="深色模式"
+            aria-checked={theme === 'dark'} disabled={status === 'loading'}
+            onClick={() => updateSettings((current) => ({ ...current, themePreference: theme === 'dark' ? 'light' : 'dark' }))}>
+            <span className="theme-switch-track" aria-hidden="true">
+              <span className="theme-switch-knob">
+                <svg className="theme-icon theme-sun" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <circle cx="10" cy="10" r="3" />
+                  <path d="M10 2v1m0 14v1M2 10h1m14 0h1M4.3 4.3l.7.7m10 10 .7.7M4.3 15.7l.7-.7M15 5l.7-.7" />
+                </svg>
+                <svg className="theme-icon theme-moon" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M15.9 12.7A6.5 6.5 0 0 1 7.3 4.1a6.5 6.5 0 1 0 8.6 8.6Z" />
+                </svg>
+              </span>
+            </span>
+          </button>
+          <span className="edition">v{version.replace('-rc.', 'rc')}</span>
+        </div>
       </header>
       <div className="mode-selector" role="group" aria-label="麻雀模式">
         {Object.values(MODE_CATALOG).map((mode) => (
@@ -68,7 +85,7 @@ function App() {
             aria-pressed={variant === mode.id} className={variant === mode.id ? 'mode active' : 'mode'}
             onClick={() => { if (mode.available) updateSettings((current) => ({ ...current, variant: mode.id })) }}>
             <img className="mode-tile" src={mode.icon} alt="" aria-hidden="true" width="24" height="30" />
-            <span className="mode-label">{mode.label}<small>{!mode.available ? <>Coming soon<br />敬請期待</> : <>&nbsp;<br />&nbsp;</>}</small></span>
+            <span className="mode-label">{mode.label}{!mode.available && <small>Coming soon<br />敬請期待</small>}</span>
           </button>
         ))}
       </div>
