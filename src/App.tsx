@@ -113,7 +113,7 @@ function App() {
         <span role="status" className={status === 'error' || status === 'unavailable' ? 'storage-warning' : 'storage-status'}>
           {status === 'loading' ? '正在讀取本機設定…' : status === 'saving' ? '正在儲存設定…' : status === 'saved' ? '設定已於此瀏覽器自動儲存' : status === 'unavailable' ? '無法讀取本機設定；本次變更只保留至重新整理，未覆寫原有資料。' : '未能儲存最新設定；請保留此頁面，下次確認變更時會再嘗試。'}
         </span>
-        <p>朋友測試版 · 尚未支援和牌計分<br />資料只存於此瀏覽器／裝置，不會同步；清除瀏覽資料可能移除記錄。 <a href="https://github.com/kabi1119/mahjong-buddy/issues" target="_blank" rel="noreferrer">回報問題</a></p>
+        <p>測試版 · 尚未支援和牌計分<br />資料只存於此瀏覽器／裝置，不會同步；清除瀏覽資料可能移除記錄。 <a href="https://github.com/kabi1119/mahjong-buddy/issues" target="_blank" rel="noreferrer">回報問題</a></p>
       </footer>
       {rulesOpen && <MatchSettings settings={settings} onSave={updateSettings} onClose={() => setRulesOpen(false)} />}
       {match && !rulesOpen && !actionPlayer && !winPlayer && (matchView || autoFour) && <MatchFlow key={match.roundId + (matchView ?? 'auto')} settings={settings} view={matchView ?? (autoFour ? 'four-kan' : 'summary')} onUpdate={updateSettings} onClose={() => { setMatchView(null); if (pendingFour) setDismissedFour(pendingFour.signature) }} onRules={() => { setMatchView(null); setRulesOpen(true) }} onWin={setWinPlayer} />}

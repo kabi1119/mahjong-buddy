@@ -26,7 +26,7 @@ describe('brand and mode artwork', () => {
     render(<App />)
     await saved()
     expect(screen.getByRole('link', { name: '麻雀小夥伴，前往牌桌' }).querySelector('img')?.getAttribute('src')).toBe('/mahjong.svg')
-    const badge = screen.getByText('v1.0.0rc2')
+    const badge = screen.getByText('v1.0.0rc3')
     const themeSwitch = screen.getByRole('switch', { name: '深色模式' })
     expect(themeSwitch.getAttribute('aria-checked')).toBe('false')
     expect(themeSwitch.querySelector('.theme-switch-track .theme-switch-knob')).toBeTruthy()
